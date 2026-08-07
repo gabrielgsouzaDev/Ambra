@@ -1,6 +1,7 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginResult } from './auth.types';
+import { AuthenticatedUser, LoginResult } from './auth.types';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 
@@ -14,5 +15,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto): Promise<LoginResult> {
     return this.authService.login(dto);
+  }
+
+  /** Dados do usuário logado (valida que o token ainda vale). */
+  @Get('me')
+  me(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
+    return user;
   }
 }
