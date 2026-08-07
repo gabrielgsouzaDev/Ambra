@@ -1,0 +1,28 @@
+{
+  "name": "ambra",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sistema pré-pago de cantina escolar (cashless closed-loop)",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm -w apps/api run start:dev",
+    "build": "npm -w apps/api run build",
+    "test": "npm -w apps/api run test",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "prisma migrate dev --schema apps/api/prisma/schema.prisma",
+    "db:generate": "prisma generate --schema apps/api/prisma/schema.prisma",
+    "db:seed": "tsx apps/api/prisma/seed.ts",
+    "db:studio": "prisma studio --schema apps/api/prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.7",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
