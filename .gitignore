@@ -1,0 +1,33 @@
+# Dependências
+node_modules/
+
+# Ambiente (segredos — nunca comitar)
+.env
+.env.local
+*.env
+!.env.example
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Prisma
+apps/api/prisma/*.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testes / cobertura
+coverage/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
