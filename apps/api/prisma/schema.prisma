@@ -1,0 +1,60 @@
+// Schema Prisma — Ambra
+// Cresce MÓDULO A MÓDULO. M0 (Fundação & Auth): School + User.
+// As demais 7 tabelas (Student, GuardianStudent, Product, Transaction, ...)
+// entram a partir do M1, conforme doc/Identidade/Banco_de_Dados.md.
+//
+// Princípios (invioláveis): dinheiro sempre Int em centavos (sufixo `Cents`);
+// uma escola por instância (schoolId simples, SEM multi-tenant/RLS).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Papéis de quem loga. Aluno NÃO loga (é passivo, só o cartão QR).
+enum Role {
+  ADMIN
+  OPERATOR
+  RESPONSAVEL
+}
+
+// Ciclo de vida da conta: PENDING até ativar via convite; ACTIVE após criar senha.
+enum UserStatus {
+  PENDING
+  ACTIVE
+}
+
+// A escola. Uma linha por instância (uma escola por instância).
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String?  @unique
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Quem loga: Admin (escola), Operador (cantina), Responsável (pai).
+model User {
+  id           String     @id @default(cuid())
+  schoolId     String
+  school       School     @relation(fields: [schoolId], references: [id])
+  name         String
+  email        String     @unique
+  passwordHash String? // nulo até ativar a conta (convite → cria senha)
+  role         Role
+  status       UserStatus @default(PENDING)
+
+  // Convite/ativação (mesmos campos servem de "esqueci a senha"). Guardar HASH, nunca texto.
+  inviteTokenHash String?
+  inviteExpiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+}
