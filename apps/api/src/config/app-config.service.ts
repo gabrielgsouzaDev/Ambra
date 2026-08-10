@@ -36,4 +36,13 @@ export class AppConfigService {
   get isPaymentsEnabled(): boolean {
     return this.config.get('PAGAMENTOS_ATIVOS', { infer: true });
   }
+
+  /** Chave do Resend (opcional). Sem ela, convites não vão por e-mail — só o link. */
+  get resendKey(): string | undefined {
+    return this.config.get('RESEND_KEY', { infer: true });
+  }
+
+  get resendFrom(): string {
+    return this.config.get('RESEND_FROM', { infer: true });
+  }
 }

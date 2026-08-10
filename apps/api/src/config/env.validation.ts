@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Max,
   Min,
@@ -52,6 +53,17 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   CORS_ORIGIN: string = 'http://localhost:3000';
+
+  // Resend (envio de convite por e-mail). OPCIONAL: sem a chave, o sistema degrada
+  // e só devolve o link de ativação — não envia e-mail (nada quebra no dev/piloto).
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  RESEND_KEY?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  RESEND_FROM: string = 'Ambra <onboarding@resend.dev>';
 }
 
 /**
