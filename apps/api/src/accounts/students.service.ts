@@ -133,4 +133,36 @@ export class StudentsService {
       guardians: student.guardians.map((link) => link.guardian),
     };
   }
+
+  /** Bloqueia o cartão (impede débito no PDV). A reemissão física é ação da escola. */
+  async blockCard(id: string): Promise<{ id: string; name: string; cardStatus: 'ACTIVE' | 'BLOCKED' }> {
+    await this.ensureExists(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { cardStatus: 'BLOCKED' },
+      select: { id: true, name: true, cardStatus: true },
+    });
+  }
+
+  /**
+   * Reemissão: gera um QR novo (o antigo deixa de valer) e reativa o cartão.
+   * Devolve o novo qrToken para a escola reimprimir o cartão.
+   */
+  async reissueCard(
+    id: string,
+  ): Promise<{ id: string; name: string; qrToken: string; cardStatus: 'ACTIVE' | 'BLOCKED' }> {
+    await this.ensureExists(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { qrToken: generateOpaqueToken(), cardStatus: 'ACTIVE' },
+      select: { id: true, name: true, qrToken: true, cardStatus: true },
+    });
+  }
+
+  private async ensureExists(id: string): Promise<void> {
+    const student = await this.prisma.student.findUnique({ where: { id }, select: { id: true } });
+    if (!student) {
+      throw new NotFoundException('Aluno não encontrado.');
+    }
+  }
 }

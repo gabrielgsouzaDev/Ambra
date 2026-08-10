@@ -25,4 +25,16 @@ export class StudentsController {
   getById(@Param('id') id: string) {
     return this.students.getById(id);
   }
+
+  @Post(':id/card/block')
+  @HttpCode(HttpStatus.OK)
+  blockCard(@Param('id') id: string) {
+    return this.students.blockCard(id);
+  }
+
+  @Post(':id/card/reissue')
+  @HttpCode(HttpStatus.OK)
+  reissueCard(@Param('id') id: string) {
+    return this.students.reissueCard(id);
+  }
 }
