@@ -34,6 +34,7 @@ model School {
   name      String
   slug      String?  @unique
   users     User[]
+  students  Student[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -53,8 +54,44 @@ model User {
   inviteTokenHash String?
   inviteExpiresAt DateTime?
 
+  // Vínculo com alunos (só faz sentido para RESPONSAVEL). N:N via GuardianStudent.
+  students GuardianStudent[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([schoolId])
+}
+
+// O aluno. NÃO loga (passivo) — é identificado pelo cartão QR no balcão.
+// M1: só identidade + cartão. Carteira/saldo entram no M3; bloqueio de cartão no M2.
+model Student {
+  id       String  @id @default(cuid())
+  schoolId String
+  school   School  @relation(fields: [schoolId], references: [id])
+  name     String
+  turma    String?
+  rm       String // matrícula (identificador da escola; usado no fallback de busca)
+
+  qrToken  String  @unique // token OPACO que vai no QR — nunca o RM/PII
+  photoUrl String? // opcional (LGPD) — só para confirmação no fallback
+
+  guardians GuardianStudent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, rm]) // RM único dentro da escola
+}
+
+// Vínculo N:N responsável ↔ aluno. Regra 1–2 responsáveis por aluno é validada
+// na aplicação (o SQL não expressa "no mínimo 1 / no máximo 2" bem).
+model GuardianStudent {
+  id         String  @id @default(cuid())
+  guardianId String
+  guardian   User    @relation(fields: [guardianId], references: [id])
+  studentId  String
+  student    Student @relation(fields: [studentId], references: [id])
+
+  @@unique([guardianId, studentId])
 }
