@@ -58,10 +58,17 @@ export class StudentsService {
           const email = input.email.toLowerCase().trim();
           const existing = await tx.user.findUnique({
             where: { email },
-            select: { id: true },
+            select: { id: true, role: true },
           });
 
           if (existing) {
+            // Só reaproveita se for RESPONSAVEL — o e-mail de um Admin/Operador
+            // não pode virar "responsável" por engano (alinha com o InvitesService).
+            if (existing.role !== 'RESPONSAVEL') {
+              throw new BadRequestException(
+                `O e-mail ${email} pertence a uma conta que não é de responsável.`,
+              );
+            }
             await tx.guardianStudent.create({
               data: { guardianId: existing.id, studentId: student.id },
             });
