@@ -58,10 +58,17 @@ export class StudentsService {
           const email = input.email.toLowerCase().trim();
           const existing = await tx.user.findUnique({
             where: { email },
-            select: { id: true },
+            select: { id: true, role: true },
           });
 
           if (existing) {
+            // Só reaproveita se for RESPONSAVEL — o e-mail de um Admin/Operador
+            // não pode virar "responsável" por engano (alinha com o InvitesService).
+            if (existing.role !== 'RESPONSAVEL') {
+              throw new BadRequestException(
+                `O e-mail ${email} pertence a uma conta que não é de responsável.`,
+              );
+            }
             await tx.guardianStudent.create({
               data: { guardianId: existing.id, studentId: student.id },
             });
@@ -132,5 +139,37 @@ export class StudentsService {
       ...student,
       guardians: student.guardians.map((link) => link.guardian),
     };
+  }
+
+  /** Bloqueia o cartão (impede débito no PDV). A reemissão física é ação da escola. */
+  async blockCard(id: string): Promise<{ id: string; name: string; cardStatus: 'ACTIVE' | 'BLOCKED' }> {
+    await this.ensureExists(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { cardStatus: 'BLOCKED' },
+      select: { id: true, name: true, cardStatus: true },
+    });
+  }
+
+  /**
+   * Reemissão: gera um QR novo (o antigo deixa de valer) e reativa o cartão.
+   * Devolve o novo qrToken para a escola reimprimir o cartão.
+   */
+  async reissueCard(
+    id: string,
+  ): Promise<{ id: string; name: string; qrToken: string; cardStatus: 'ACTIVE' | 'BLOCKED' }> {
+    await this.ensureExists(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { qrToken: generateOpaqueToken(), cardStatus: 'ACTIVE' },
+      select: { id: true, name: true, qrToken: true, cardStatus: true },
+    });
+  }
+
+  private async ensureExists(id: string): Promise<void> {
+    const student = await this.prisma.student.findUnique({ where: { id }, select: { id: true } });
+    if (!student) {
+      throw new NotFoundException('Aluno não encontrado.');
+    }
   }
 }

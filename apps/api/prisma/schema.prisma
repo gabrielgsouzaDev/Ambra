@@ -28,6 +28,12 @@ enum UserStatus {
   ACTIVE
 }
 
+// Estado do cartão do aluno. BLOCKED impede o débito no PDV; reemissão gera novo QR.
+enum CardStatus {
+  ACTIVE
+  BLOCKED
+}
+
 // A escola. Uma linha por instância (uma escola por instância).
 model School {
   id        String   @id @default(cuid())
@@ -73,8 +79,9 @@ model Student {
   turma    String?
   rm       String // matrícula (identificador da escola; usado no fallback de busca)
 
-  qrToken  String  @unique // token OPACO que vai no QR — nunca o RM/PII
-  photoUrl String? // opcional (LGPD) — só para confirmação no fallback
+  qrToken    String     @unique // token OPACO que vai no QR — nunca o RM/PII
+  photoUrl   String? // opcional (LGPD) — só para confirmação no fallback
+  cardStatus CardStatus @default(ACTIVE) // bloqueio/reemissão do cartão (M2)
 
   guardians GuardianStudent[]
 

@@ -55,7 +55,7 @@ describe('StudentsService', () => {
   });
 
   it('reaproveita responsável já existente, sem novo convite', async () => {
-    tx.user.findUnique.mockResolvedValue({ id: 'g-existing' });
+    tx.user.findUnique.mockResolvedValue({ id: 'g-existing', role: 'RESPONSAVEL' });
 
     const result = await service.createStudent({
       name: 'Ana',
@@ -69,6 +69,20 @@ describe('StudentsService', () => {
     });
     expect(result.guardians[0]).toMatchObject({ email: 'mae@x.com', status: 'existing' });
     expect(result.guardians[0]?.activationToken).toBeUndefined();
+  });
+
+  it('rejeita reaproveitar um e-mail que não é de responsável (Admin/Operador)', async () => {
+    tx.user.findUnique.mockResolvedValue({ id: 'admin-1', role: 'ADMIN' });
+
+    await expect(
+      service.createStudent({
+        name: 'Ana',
+        rm: '123',
+        guardians: [{ name: 'Fulano', email: 'admin@escola.local' }],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(tx.guardianStudent.create).not.toHaveBeenCalled();
   });
 
   it('rejeita responsáveis com e-mail duplicado no mesmo cadastro', async () => {

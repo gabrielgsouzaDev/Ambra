@@ -8,5 +8,6 @@ import { StudentsService } from './students.service';
 @Module({
   controllers: [StudentsController, InviteController],
   providers: [StudentsService, InviteService],
+  exports: [StudentsService], // usado pelo módulo de onboarding (import CSV)
 })
 export class AccountsModule {}
