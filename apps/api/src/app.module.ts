@@ -6,10 +6,11 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { ConfigModule } from './config/config.module';
 import { HealthController } from './health/health.controller';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, AuthModule, AccountsModule],
+  imports: [ConfigModule, PrismaModule, AuthModule, AccountsModule, OnboardingModule],
   controllers: [HealthController],
   providers: [
     // Ordem importa: autentica (JWT) e depois autoriza (papel). Ambos globais.
