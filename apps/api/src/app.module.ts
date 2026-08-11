@@ -8,9 +8,10 @@ import { ConfigModule } from './config/config.module';
 import { HealthController } from './health/health.controller';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, AuthModule, AccountsModule, OnboardingModule],
+  imports: [ConfigModule, PrismaModule, AuthModule, AccountsModule, OnboardingModule, WalletModule],
   controllers: [HealthController],
   providers: [
     // Ordem importa: autentica (JWT) e depois autoriza (papel). Ambos globais.
