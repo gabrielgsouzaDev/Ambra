@@ -99,9 +99,10 @@ model Student {
   cardStatus CardStatus @default(ACTIVE) // bloqueio/reemissão do cartão (M2)
 
   // Carteira (M3). Dinheiro em centavos; saldo nunca negativo (CHECK via migration).
-  balanceCents    Int  @default(0) // CHECK (balanceCents >= 0) — adicionado na migration
-  dailyLimitCents Int? // nulo = sem limite diário
-  version         Int  @default(0) // optimistic locking do débito (usado no M5)
+  balanceCents             Int  @default(0) // CHECK (balanceCents >= 0) — adicionado na migration
+  dailyLimitCents          Int? // nulo = sem limite diário
+  lowBalanceThresholdCents Int? // limiar do alerta de saldo baixo (M6; entrega do alerta é v1.1)
+  version                  Int  @default(0) // optimistic locking do débito (usado no M5)
 
   guardians    GuardianStudent[]
   transactions Transaction[]
