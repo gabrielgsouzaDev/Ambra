@@ -8,6 +8,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
 import { ConfigModule } from './config/config.module';
 import { HealthController } from './health/health.controller';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { PdvModule } from './pdv/pdv.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { WalletModule } from './wallet/wallet.module';
 
@@ -20,6 +21,7 @@ import { WalletModule } from './wallet/wallet.module';
     OnboardingModule,
     WalletModule,
     CatalogModule,
+    PdvModule,
   ],
   controllers: [HealthController],
   providers: [
