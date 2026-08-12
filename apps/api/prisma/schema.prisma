@@ -137,6 +137,8 @@ model Transaction {
   balanceAfterCents Int // saldo após o movimento (snapshot)
   createdAt         DateTime @default(now())
 
+  items TransactionItem[] // itens da compra (só para PURCHASE)
+
   @@index([studentId, createdAt]) // extrato e gastoHoje
 }
 
@@ -169,6 +171,7 @@ model Product {
   active     Boolean @default(true) // existe no catálogo (soft-delete)
 
   blocks StudentProductBlock[]
+  items  TransactionItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -187,4 +190,19 @@ model StudentProductBlock {
   createdAt DateTime @default(now())
 
   @@unique([studentId, productId])
+}
+
+// Itens de uma compra (só para Transaction PURCHASE). Snapshot de nome/preço →
+// o extrato fica correto mesmo se o produto mudar/sumir (soft-delete) depois.
+model TransactionItem {
+  id             String      @id @default(cuid())
+  transactionId  String
+  transaction    Transaction @relation(fields: [transactionId], references: [id])
+  productId      String? // nulo se o produto for apagado; o snapshot preserva o item
+  product        Product?    @relation(fields: [productId], references: [id])
+  productName    String // snapshot
+  unitPriceCents Int // snapshot
+  quantity       Int         @default(1)
+
+  @@index([transactionId])
 }
