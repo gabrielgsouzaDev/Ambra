@@ -9,6 +9,7 @@ import { ConfigModule } from './config/config.module';
 import { HealthController } from './health/health.controller';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PdvModule } from './pdv/pdv.module';
+import { PortalModule } from './portal/portal.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { WalletModule } from './wallet/wallet.module';
 
@@ -22,6 +23,7 @@ import { WalletModule } from './wallet/wallet.module';
     WalletModule,
     CatalogModule,
     PdvModule,
+    PortalModule,
   ],
   controllers: [HealthController],
   providers: [
