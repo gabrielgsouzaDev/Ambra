@@ -34,6 +34,19 @@ enum CardStatus {
   BLOCKED
 }
 
+// Tipo de lançamento no livro-caixa (append-only). PURCHASE entra no M5 (PDV).
+enum TxType {
+  RECHARGE
+  PURCHASE
+}
+
+// Ciclo de vida da recarga PIX (via porta PaymentGateway).
+enum RechargeStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
 // A escola. Uma linha por instância (uma escola por instância).
 model School {
   id        String   @id @default(cuid())
@@ -61,7 +74,8 @@ model User {
   inviteExpiresAt DateTime?
 
   // Vínculo com alunos (só faz sentido para RESPONSAVEL). N:N via GuardianStudent.
-  students GuardianStudent[]
+  students  GuardianStudent[]
+  recharges Recharge[] // recargas que este responsável iniciou
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -83,7 +97,14 @@ model Student {
   photoUrl   String? // opcional (LGPD) — só para confirmação no fallback
   cardStatus CardStatus @default(ACTIVE) // bloqueio/reemissão do cartão (M2)
 
-  guardians GuardianStudent[]
+  // Carteira (M3). Dinheiro em centavos; saldo nunca negativo (CHECK via migration).
+  balanceCents    Int  @default(0) // CHECK (balanceCents >= 0) — adicionado na migration
+  dailyLimitCents Int? // nulo = sem limite diário
+  version         Int  @default(0) // optimistic locking do débito (usado no M5)
+
+  guardians    GuardianStudent[]
+  transactions Transaction[]
+  recharges    Recharge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -101,4 +122,36 @@ model GuardianStudent {
   student    Student @relation(fields: [studentId], references: [id])
 
   @@unique([guardianId, studentId])
+}
+
+// Livro-caixa append-only: cada mudança de saldo (recarga agora; compra no M5).
+// NUNCA UPDATE/DELETE numa linha existente — correção é uma nova linha.
+model Transaction {
+  id                String   @id @default(cuid())
+  studentId         String
+  student           Student  @relation(fields: [studentId], references: [id])
+  type              TxType
+  amountCents       Int // magnitude do movimento
+  balanceAfterCents Int // saldo após o movimento (snapshot)
+  createdAt         DateTime @default(now())
+
+  @@index([studentId, createdAt]) // extrato e gastoHoje
+}
+
+// Ciclo da recarga PIX (via porta PaymentGateway). O crédito no saldo só acontece
+// no CONFIRMED (webhook), idempotente pelo gatewayChargeId único.
+model Recharge {
+  id              String         @id @default(cuid())
+  studentId       String
+  student         Student        @relation(fields: [studentId], references: [id])
+  guardianId      String
+  guardian        User           @relation(fields: [guardianId], references: [id])
+  amountCents     Int // vai pra cantina (via split do provedor)
+  feeCents        Int // sua taxa (199)
+  gatewayChargeId String?        @unique // id da cobrança no provedor; ancora a idempotência
+  status          RechargeStatus @default(PENDING)
+  createdAt       DateTime       @default(now())
+  confirmedAt     DateTime?
+
+  @@index([studentId, createdAt])
 }
