@@ -4,7 +4,7 @@
 
 **Não é uma fintech.** É um sistema de saldo fechado de cantina — simples, local, e focado.
 
-`status: em desenvolvimento (reconstrução do zero) · MVP em definição`
+`status: backend do MVP completo (M0–M7) · 67 testes · frontend ainda não implementado`
 
 ---
 
@@ -23,12 +23,45 @@ Recarga (pai, PIX)  →  Cartão QR (aluno)  →  Balcão (operador escaneia)
                                                      │
                         mostra saldo + limite  →  monta pedido  →  "Liberado"
                                                      │
-                              débito atômico do saldo  →  extrato em tempo real (pai)
+                              débito atômico do saldo  →  extrato (pai)
 ```
 
 - **Identificação:** cartão QR impresso (sem app de aluno, sem celular).
-- **Recarga:** só PIX remoto (via AbacatePay), com taxa fixa de **R$ 1,99**.
-- **Segurança:** saldo nunca negativo; limite diário limita qualquer estrago; bloqueio/reemissão de cartão.
+- **Recarga:** só PIX remoto, com taxa fixa de **R$ 1,99** por recarga.
+- **Segurança:** saldo nunca negativo (garantido no banco); limite diário limita qualquer estrago; bloqueio/reemissão de cartão.
+
+---
+
+## Status dos módulos (backend)
+
+| # | Módulo | O que faz | |
+|---|---|---|---|
+| M0 | Fundação & Auth | Login JWT + bcrypt, papéis (Admin/Operador/Responsável), guards globais, flag `PAGAMENTOS_ATIVOS` | ✅ |
+| M1 | Contas & Identidade | Alunos, responsáveis (1–2 por aluno), cartão QR (token opaco), convite/ativação | ✅ |
+| M2 | Admin / Onboarding | Importação CSV, cartões em PDF, envio/reenvio de convite, bloqueio/reemissão de cartão | ✅ |
+| M3 | Carteira & Recarga | Saldo em centavos, recarga PIX atrás da porta `PaymentGateway`, crédito **idempotente** por webhook | ✅ |
+| M4 | Catálogo | Produtos, toggle disponível/indisponível, bloqueio por produto/aluno (o "X") | ✅ |
+| M5 | **PDV / Débito** | Leitura do QR, **débito atômico à prova de concorrência** (sem double-spend), conta de operador | ✅ |
+| M6 | Portal Responsável | Dependentes, extrato, limiar de alerta, pedido de bloqueio do cartão | ✅ |
+| M7 | Relatório & Fechamento | Fechamento diário da cantina (total, nº de compras, ticket médio, por produto) | ✅ |
+
+**Núcleo `recarregar → debitar → relatório` completo.** Verificado com testes unitários e smoke ponta-a-ponta contra Postgres real (incluindo concorrência no débito).
+
+---
+
+## Principais rotas da API
+
+| Área | Rotas |
+|---|---|
+| Auth | `POST /auth/login` · `GET /auth/me` · `GET /health` |
+| Contas | `POST /students` · `GET /students(/:id)` · `POST /students/:id/card/{block,reissue}` · `POST /operators` |
+| Convite | `GET /invite/:token` · `POST /invite/activate` |
+| Onboarding | `POST /onboarding/import` · `GET /onboarding/cards.pdf` · `POST /onboarding/guardians/:id/invite` |
+| Carteira | `GET /students/:id/wallet` · `PATCH /students/:id/daily-limit` · `POST /recharges` · `POST /recharges/webhook` |
+| Catálogo | `GET/POST/PATCH/DELETE /products` · `PUT/DELETE /students/:id/blocks/:productId` |
+| PDV | `GET /pdv/student?token=` · `GET /pdv/student-by-rm?rm=` · `POST /pdv/purchase` |
+| Portal | `GET /me/students` · `GET /me/students/:id/statement` · `PATCH .../alert-threshold` · `POST .../card/block` |
+| Relatório | `GET /reports/daily` · `GET /reports/daily/transactions` |
 
 ---
 
@@ -36,17 +69,27 @@ Recarga (pai, PIX)  →  Cartão QR (aluno)  →  Balcão (operador escaneia)
 
 | Camada | Tecnologia |
 |---|---|
-| Backend | NestJS + Prisma + PostgreSQL |
+| Backend | **NestJS 10 + Prisma + PostgreSQL** (implementado) |
 | Auth | JWT + bcrypt |
-| Frontend | Next.js + React + Tailwind + shadcn/ui (**PWA**) |
-| Pagamento | AbacatePay (PIX + split) |
-| E-mail | Resend |
+| Pagamento | Porta `PaymentGateway` (hexagonal) — provedor real a definir; `FakeGateway` no dev |
+| Onboarding | PapaParse (CSV) · pdfkit + qrcode (cartões) · Resend (e-mail, opcional) |
+| Frontend | Next.js + React + Tailwind + shadcn/ui (**PWA**) — *planejado, ainda não implementado* |
 
-Três superfícies, um stack só: **Portal Responsável** (PWA), **PDV Operador** (Web/PWA com câmera), **Admin** (Web). Sem app nativo, sem totem, **uma escola por instância**.
+Três superfícies previstas, um stack só: **Portal Responsável** (PWA), **PDV Operador** (Web/PWA com câmera), **Admin** (Web). Sem app nativo, sem totem, **uma escola por instância**.
+
+---
+
+## Pagamento (gateway)
+
+A recarga PIX fica atrás da flag `PAGAMENTOS_ATIVOS` **e** da porta `PaymentGateway` — o núcleo nunca fala com o SDK de um provedor. Hoje o adapter é o **`FakeGateway`** (determinístico, para dev/testes). O split (repasse à cantina) e a autenticação do webhook vivem **dentro** de cada adapter, então trocar de provedor é trocar o adapter, não o produto.
+
+> O split do AbacatePay ainda não existe (em desenvolvimento). A estratégia é construir contra um gateway com split que já exista, em sandbox, e migrar depois — a porta torna essa troca barata.
 
 ---
 
 ## Começando (dev)
+
+Pré-requisitos: **Node ≥ 20**, **Docker** (para o Postgres).
 
 ```bash
 # 1. Instalar (monorepo npm workspaces)
@@ -54,29 +97,33 @@ npm install
 
 # 2. Configurar ambiente
 cp .env.example .env
-#   DATABASE_URL, JWT_SECRET, PAGAMENTOS_ATIVOS, (ABACATEPAY_KEY/RESEND_KEY a partir do M3)
+#   DATABASE_URL, JWT_SECRET, PAGAMENTOS_ATIVOS, CORS_ORIGIN, SEED_*
+#   RESEND_KEY é opcional (sem ela, convites degradam para "devolve o link")
 
 # 3. Banco (Postgres via Docker, porta 5433) + migrations + seed do 1º admin
 npm run db:up
-npm run db:migrate
-npm run db:seed        # cria a escola + admin (SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD)
+npm run db:migrate      # aplica as migrations e gera o Prisma Client
+npm run db:seed         # cria a escola + admin (SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD)
 
 # 4. Rodar a API (http://localhost:3001)
 npm run dev
+
+# Testes
+npm test
 ```
 
-> **Status do build:** M0 (Fundação & Auth) implementado no backend (`apps/api`): NestJS + Prisma + PostgreSQL, login JWT (1 dia) com bcrypt, papéis Admin/Operador/Responsável (guards globais), flag `PAGAMENTOS_ATIVOS`, uma escola por instância. Rotas: `GET /health`, `POST /auth/login`, `GET /auth/me`.
-
-> Recarga PIX fica atrás da flag `PAGAMENTOS_ATIVOS` — construída no **sandbox** do AbacatePay, ligada em produção só quando a ME estiver aberta.
+> A recarga PIX (`POST /recharges`) só responde com `PAGAMENTOS_ATIVOS=true`. Em produção, use `TZ=America/Sao_Paulo` (o "dia" do limite diário e do relatório é o dia local da escola).
 
 ---
 
 ## Roadmap
 
-- **v1 (MVP):** núcleo `recarregar → debitar → relatório` + onboarding, rodando em **1 cantina real**.
-- **v1.1:** alerta de saldo baixo (push/e-mail), fila offline no PDV.
-- **v2:** app do aluno, estoque com quantidade, pré-encomenda, painel Owner multi-escola.
-- **v3+:** multi-escola de verdade, totem (custo da escola), relatórios avançados.
+- **Backend do MVP:** ✅ completo (M0–M7), no `main`, com 8 tags (`v0.1.0-m0` → `v0.8.0-m7`).
+- **Próximo — frontend:** as 3 superfícies (Portal PWA, PDV com câmera lendo QR, Admin) — o que falta pra "rodar numa cantina real".
+- **Próximo — pagamento real:** escolher o provedor com split (após CNPJ) e escrever o adapter concreto atrás da porta.
+- **Deploy:** Vercel (front) + host do backend + Postgres gerenciado + `TZ=America/Sao_Paulo`.
+- **v1.1:** entrega do alerta de saldo baixo (push/e-mail), fila offline no PDV.
+- **v2+:** app do aluno, estoque com quantidade, pré-encomenda, multi-escola, totem.
 
 ---
 
