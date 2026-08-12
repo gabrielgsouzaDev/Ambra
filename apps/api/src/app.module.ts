@@ -10,6 +10,7 @@ import { HealthController } from './health/health.controller';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PdvModule } from './pdv/pdv.module';
 import { PortalModule } from './portal/portal.module';
+import { ReportsModule } from './reports/reports.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { WalletModule } from './wallet/wallet.module';
 
@@ -24,6 +25,7 @@ import { WalletModule } from './wallet/wallet.module';
     CatalogModule,
     PdvModule,
     PortalModule,
+    ReportsModule,
   ],
   controllers: [HealthController],
   providers: [
