@@ -54,6 +54,7 @@ model School {
   slug      String?  @unique
   users     User[]
   students  Student[]
+  products  Product[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -105,6 +106,7 @@ model Student {
   guardians    GuardianStudent[]
   transactions Transaction[]
   recharges    Recharge[]
+  blocks       StudentProductBlock[] // produtos bloqueados para este aluno (o "X")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -154,4 +156,35 @@ model Recharge {
   confirmedAt     DateTime?
 
   @@index([studentId, createdAt])
+}
+
+// Item do catálogo da cantina (M4). Preço em centavos. Sem estoque com quantidade.
+model Product {
+  id         String  @id @default(cuid())
+  schoolId   String
+  school     School  @relation(fields: [schoolId], references: [id])
+  name       String
+  priceCents Int
+  available  Boolean @default(true) // toggle do operador (acabou → some do PDV). NÃO é estoque.
+  active     Boolean @default(true) // existe no catálogo (soft-delete)
+
+  blocks StudentProductBlock[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+}
+
+// Bloqueio de um produto para um aluno (o "X"). Criado pelo responsável (ou admin).
+// Cobre também alergia (bloqueia o item do alérgeno).
+model StudentProductBlock {
+  id        String  @id @default(cuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, productId])
 }
