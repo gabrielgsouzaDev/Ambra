@@ -1,4 +1,5 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Public } from '../auth/decorators/public.decorator';
 import { WalletService } from './wallet.service';
 
@@ -12,6 +13,7 @@ export class WebhookController {
   constructor(private readonly wallet: WalletService) {}
 
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } }) // público → limita abuso do webhook
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   async webhook(

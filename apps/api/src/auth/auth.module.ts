@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import type { SignOptions } from 'jsonwebtoken';
 import { AppConfigService } from '../config/app-config.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -11,9 +12,11 @@ import { JwtStrategy, JWT_STRATEGY } from './strategies/jwt.strategy';
     PassportModule.register({ defaultStrategy: JWT_STRATEGY }),
     JwtModule.registerAsync({
       inject: [AppConfigService],
-      useFactory: (config: AppConfigService) => ({
+      // No @nestjs/jwt v11 o expiresIn é tipado como StringValue (pacote `ms`),
+      // mas o valor vem do ambiente como string ("1d") — a conversão fica aqui.
+      useFactory: (config: AppConfigService): JwtModuleOptions => ({
         secret: config.jwtSecret,
-        signOptions: { expiresIn: config.jwtExpiresIn },
+        signOptions: { expiresIn: config.jwtExpiresIn as SignOptions['expiresIn'] },
       }),
     }),
   ],

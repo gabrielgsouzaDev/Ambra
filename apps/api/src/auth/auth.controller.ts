@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { AuthenticatedUser, LoginResult } from './auth.types';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -11,6 +12,7 @@ export class AuthController {
 
   /** Login por e-mail/senha → JWT (1 dia, sem refresh no MVP). */
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } }) // anti brute-force: 10/min por IP
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto): Promise<LoginResult> {

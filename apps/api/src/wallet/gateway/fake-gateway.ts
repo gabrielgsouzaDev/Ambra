@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import {
   CreatePixChargeInput,
   PaymentEvent,
@@ -14,7 +14,22 @@ import {
  * split de verdade sem tocar no núcleo.
  */
 @Injectable()
-export class FakeGateway extends PaymentGateway {
+export class FakeGateway extends PaymentGateway implements OnModuleInit {
+  /**
+   * Trava de segurança: o FakeGateway credita saldo SEM validar assinatura de
+   * webhook. Deixá-lo ativo em produção permitiria creditar sem pagar. Por isso,
+   * ele se recusa a subir em produção — só um adapter real (com verificação de
+   * webhook) pode rodar lá.
+   */
+  onModuleInit(): void {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'FakeGateway não pode rodar em produção (credita sem validar assinatura). ' +
+          'Configure um adapter de gateway real antes de ligar PAGAMENTOS_ATIVOS em produção.',
+      );
+    }
+  }
+
   createPixCharge(input: CreatePixChargeInput): Promise<PixCharge> {
     const gatewayChargeId = `fake_${input.rechargeId}`;
     const totalCents = input.amountCents + input.feeCents;

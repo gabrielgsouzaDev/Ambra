@@ -69,10 +69,27 @@ export class EnvironmentVariables {
 /**
  * Usada por ConfigModule.forRoot({ validate }). Roda uma vez, no boot.
  */
+/**
+ * Segredos de exemplo que NÃO podem ir para produção. O placeholder do
+ * .env.example é público (está no repositório): quem o conhecer forja um JWT
+ * com qualquer `sub`/papel e vira admin. Falha alto em vez de deixar passar.
+ */
+const PLACEHOLDER_SECRETS = ['troque-por-um-segredo-forte-em-producao', 'changeme', 'secret'];
+
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {
   const validated = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: false,
   });
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    PLACEHOLDER_SECRETS.includes(String(config.JWT_SECRET ?? '').trim().toLowerCase())
+  ) {
+    throw new Error(
+      'JWT_SECRET está com o valor de exemplo. Gere um segredo forte e único ' +
+        '(ex.: `openssl rand -base64 48`) antes de subir em produção.',
+    );
+  }
 
   const errors = validateSync(validated, {
     skipMissingProperties: false,

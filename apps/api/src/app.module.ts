@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AccountsModule } from './accounts/accounts.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
@@ -16,6 +17,8 @@ import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
+    // Rate limit global: 120 req/min por IP (in-memory; MVP single-instance).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     ConfigModule,
     PrismaModule,
     AuthModule,
@@ -29,7 +32,8 @@ import { WalletModule } from './wallet/wallet.module';
   ],
   controllers: [HealthController],
   providers: [
-    // Ordem importa: autentica (JWT) e depois autoriza (papel). Ambos globais.
+    // Ordem importa: rate-limit primeiro, depois autentica (JWT), depois autoriza (papel).
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
