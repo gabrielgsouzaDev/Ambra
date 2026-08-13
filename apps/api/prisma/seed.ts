@@ -19,6 +19,16 @@ async function main(): Promise<void> {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'admin123';
   const adminName = process.env.SEED_ADMIN_NAME ?? 'Administrador';
 
+  // Em produção, nunca aceitar a senha padrão/fraca (takeover trivial de admin).
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!process.env.SEED_ADMIN_PASSWORD || adminPassword.length < 8 || adminPassword === 'admin123')
+  ) {
+    throw new Error(
+      'Em produção, defina SEED_ADMIN_PASSWORD com uma senha forte (>= 8 caracteres, não o padrão).',
+    );
+  }
+
   // Uma escola por instância: reutiliza a existente, senão cria.
   const school =
     (await prisma.school.findFirst()) ??
