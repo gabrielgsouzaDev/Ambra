@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validateSync, ValidationError } from 'class-validator';
 import { parse } from 'papaparse';
 import { CreateStudentDto } from '../accounts/dto/create-student.dto';
 import { StudentsService } from '../accounts/students.service';
 import { ImportDto } from './dto/import.dto';
+
+/** Máximo de linhas por importação (defesa contra DoS). */
+const MAX_IMPORT_ROWS = 2000;
 
 interface RowError {
   row: number; // linha no CSV (1-based, contando o cabeçalho)
@@ -48,6 +51,13 @@ export class ImportService {
     });
 
     const rows = parsed.data;
+    // Cap de linhas: evita DoS (o processamento cria alunos linha a linha).
+    if (rows.length > MAX_IMPORT_ROWS) {
+      throw new BadRequestException(
+        `Importação limitada a ${MAX_IMPORT_ROWS} linhas por vez. Divida o arquivo.`,
+      );
+    }
+
     const failed: RowError[] = [];
     let created = 0;
 
