@@ -6,6 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 const MARGIN = 36;
 const COLS = 2;
 const ROWS = 4;
+/** Teto de cartões por PDF (defesa contra pico de CPU/memória). */
+const MAX_CARDS_PER_PDF = 500;
 
 @Injectable()
 export class CardsService {
@@ -15,9 +17,13 @@ export class CardsService {
    * PDF (A4) com uma grade de cartões — nome, turma, RM e o QR de cada aluno —
    * para a escola imprimir e distribuir. Usa o qrToken atual (reemissão gera outro).
    */
-  async generateCardsPdf(): Promise<Buffer> {
+  async generateCardsPdf(turma?: string): Promise<Buffer> {
     const students = await this.prisma.student.findMany({
+      where: turma ? { turma } : {},
       orderBy: [{ turma: 'asc' }, { name: 'asc' }],
+      // Teto por requisição: gerar QR+PDF é caro em CPU/memória. Escolas grandes
+      // devem exportar por turma (?turma=5A) em vez de tudo de uma vez.
+      take: MAX_CARDS_PER_PDF,
       select: { name: true, turma: true, rm: true, qrToken: true },
     });
 

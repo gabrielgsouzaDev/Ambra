@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Query, Res } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Response } from 'express';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -10,9 +10,10 @@ import { CardsService } from './cards.service';
 export class CardsController {
   constructor(private readonly cards: CardsService) {}
 
+  /** `?turma=5A` para exportar por turma (recomendado em escolas grandes). */
   @Get('cards.pdf')
-  async cardsPdf(@Res() res: Response): Promise<void> {
-    const pdf = await this.cards.generateCardsPdf();
+  async cardsPdf(@Res() res: Response, @Query('turma') turma?: string): Promise<void> {
+    const pdf = await this.cards.generateCardsPdf(turma);
     res
       .status(HttpStatus.OK)
       .setHeader('Content-Type', 'application/pdf')
