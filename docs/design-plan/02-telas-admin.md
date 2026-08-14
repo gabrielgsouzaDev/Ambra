@@ -104,7 +104,9 @@ cards com Nome, Turma e RM.
 | `GET /students/:id` | ao montar | dados, `qrToken` e responsáveis |
 | `GET /students/:id/wallet` | ao montar | saldo e limite diário |
 | `POST /students/:id/card/block` | clique em `Bloquear cartão` (com confirmação) | bloquear |
+| `POST /students/:id/card/unblock` | clique em `Desbloquear cartão` | desfazer o bloqueio mantendo o QR |
 | `POST /students/:id/card/reissue` | clique em `Reemitir cartão` (com confirmação) | gerar novo QR |
+| `PATCH /students/:id/photo` | salvar a URL da foto | definir/remover a foto do aluno |
 | `POST /onboarding/guardians/:id/invite` | clique em `Reenviar convite` | reenviar ativação ao responsável |
 | `PATCH /students/:id/daily-limit` | salvar o limite | definir limite pela escola |
 
@@ -118,9 +120,15 @@ Cabeçalho com nome, turma e RM. Quatro blocos: `Carteira`, `Cartão`, `Respons�
 
 **Cartão**
 - **[texto de estado]** `Cartão ativo` / `Cartão bloqueado`.
-- **[botão destrutivo]** `Bloquear cartão` → modal: `Bloquear o cartão de {nome}? Ele para de funcionar imediatamente.`
+- **[botão destrutivo]** `Bloquear cartão` — só quando ativo → modal: `Bloquear o cartão de {nome}? Ele para de funcionar imediatamente.`
+- **[botão]** `Desbloquear cartão` — só quando bloqueado. Mantém o **mesmo QR**, então não exige reimpressão. Texto de apoio: `O cartão volta a funcionar com o mesmo QR — use quando o bloqueio foi por engano ou o cartão apareceu.`
 - **[botão]** `Reemitir cartão` → modal: `Reemitir gera um QR novo e invalida o cartão atual. Será preciso imprimir e entregar o cartão novo. Confirmar?`
 - **[botão]** `Gerar cartão em PDF` → A6 já filtrado por este aluno *(ver Observações)*.
+
+**Foto** (opcional, LGPD)
+- **[input url]** URL da foto — placeholder `https://…/ana.jpg` — opcional, precisa ser URL http(s). Erro: `Informe uma URL de imagem válida.`
+- **[texto de apoio]** `A foto aparece para o operador quando o aluno esquece o cartão. É opcional — só use com consentimento.`
+- **[botão]** `Salvar foto` · **[botão de texto]** `Remover foto`.
 
 **Responsáveis** (1 a 2)
 - **[lista]** por responsável: nome, e-mail e etiqueta de status — `Ativo` ou `Convite pendente`.
@@ -138,9 +146,10 @@ reemissão.
 
 ### Observações
 O `qrToken` **não é exibido como texto** — é credencial de posse. Ele existe na resposta e é usado só
-para gerar o PDF. **Limitação (lacuna L8):** não há como desbloquear um cartão sem reemitir; se a
-escola bloquear por engano, terá que reimprimir. **Limitação (lacuna L6):** reenvio de convite só
-funciona para responsável — operador que perder o link precisa ser recriado.
+para gerar o PDF. Bloquear e desbloquear preservam o QR; só a **reemissão** o troca (e aí exige
+reimpressão) — a tela precisa deixar essa diferença clara, senão a escola reemite sem necessidade.
+A foto recebe uma **URL já hospedada**: o upload de arquivo depende de uma decisão de armazenamento
+ainda em aberto (provavelmente Supabase Storage).
 
 ---
 
@@ -292,8 +301,9 @@ registrar como melhoria (`?studentId=`), não como lacuna bloqueante.
 ### Endpoints consumidos
 | Endpoint | Quando dispara | Usado para |
 |---|---|---|
-| `GET /operators` | ao montar | listar operadores |
+| `GET /operators` | ao montar | listar operadores (paginado, `?q` para buscar) |
 | `POST /operators` | salvar no modal | criar operador + convite |
+| `POST /onboarding/operators/:id/invite` | clique em `Reenviar convite` | gerar e reenviar o link de ativação |
 
 ### Layout
 Lista simples com botão de criação no topo.
@@ -301,6 +311,7 @@ Lista simples com botão de criação no topo.
 ### Elementos
 - **[botão primário]** `Novo operador` — abre modal com: **[input texto]** Nome — placeholder `Cantina Central` — obrigatório, 2 a 120; **[input e-mail]** E-mail — placeholder `cantina@escola.com.br` — obrigatório. Erro: `E-mail do operador inválido.`
 - **[tabela]** colunas: Nome, E-mail, Status (`Ativo` / `Convite pendente`), Criado em.
+- **[botão por linha]** `Reenviar convite` — só em quem está `Convite pendente`; ao responder, mostra o link com `Copiar link`.
 - **[bloco pós-criação]** exibe o **link de ativação** com `Copiar link` e o texto: `Envie este link ao operador. Ele expira em 7 dias e só pode ser usado uma vez.`
 
 ### Estados
@@ -311,6 +322,50 @@ Lista simples com botão de criação no topo.
 
 ### Observações
 O link de ativação é mostrado **na tela** porque o envio por e-mail depende de `RESEND_KEY`, que pode
-não estar configurada — sem isso, o operador nunca receberia o convite. **Limitação (lacuna L6):** não
-há reenvio de convite para operador; se o link se perder, é preciso criar outra conta. Vale resolver
-antes do piloto, porque perder o link é comum.
+não estar configurada — sem isso, o operador nunca receberia o convite. Perder o link é comum, por
+isso o reenvio existe e gera um token novo (o anterior deixa de valer).
+
+---
+
+## [A8] Responsáveis
+
+**Rota:** `/responsaveis`
+**Tipo:** tela
+**Acesso:** ADMIN.
+**Objetivo:** ver quem ainda não ativou a conta e destravar essas pessoas — é o gargalo do onboarding.
+
+### Chegada e saída
+- **Chega de:** sidebar (`Responsáveis`) · A1 (atalho, quando houver pendentes).
+- **Sai para:** A3 (clique num dependente listado).
+
+### Endpoints consumidos
+| Endpoint | Quando dispara | Usado para |
+|---|---|---|
+| `GET /guardians` | ao montar e ao trocar o filtro | listar responsáveis com seus dependentes |
+| `POST /onboarding/guardians/:id/invite` | clique em `Reenviar convite` | gerar e reenviar o link |
+
+### Layout
+Filtro de status no topo (com `Convite pendente` pré-selecionado — é o motivo de a tela existir),
+busca ao lado, e a tabela abaixo.
+
+### Elementos
+- **[abas ou select]** `Convite pendente` (padrão) · `Ativos` · `Todos` — vira `?status=`.
+- **[input busca]** placeholder `Buscar por nome ou e-mail` — vira `?q=`.
+- **[tabela]** colunas: Nome, E-mail, Dependentes (nomes, clicáveis → A3), Status, Cadastrado em.
+- **[botão por linha]** `Reenviar convite` — só em quem está pendente; ao responder, mostra o link com `Copiar link`.
+- **[paginação]** `Anterior` / `Próxima` com `Mostrando 1–25 de 137`.
+
+### Filtros e busca
+Ambos vão para a API (`?status`, `?q`, `?page`, `?limit`) — a listagem é paginada no servidor.
+
+### Estados
+- **Carregando:** cinco linhas em esqueleto.
+- **Vazio (pendentes):** `Nenhum convite pendente — todos os responsáveis já ativaram a conta.` — boa notícia, e o texto diz isso.
+- **Vazio (busca):** `Nenhum responsável encontrado para "{termo}".`
+- **Erro:** `Não foi possível carregar os responsáveis.` + `Tentar de novo`.
+- **Sucesso:** tabela populada; após reenviar, a linha mostra o link para copiar.
+
+### Observações
+Esta tela existe por um motivo operacional concreto: o pai que não ativa a conta **não recarrega**, e
+sem recarga não há receita. Ver a lista de pendentes num lugar só é o que permite à escola cobrar
+essas ativações — antes, só dava para descobrir entrando aluno por aluno.

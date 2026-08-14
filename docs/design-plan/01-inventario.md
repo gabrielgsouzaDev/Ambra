@@ -32,17 +32,22 @@
 | `POST /auth/login` | Login → JWT (1 dia) | **público** (10/min) | `{email, password}` | `{accessToken, user}` |
 | `GET /auth/me` | Usuário logado | autenticado | — | `{id, email, role, schoolId}` |
 | `GET /invite/:token` | Verifica convite | **público** | — | `{name, email}` |
-| `POST /invite/activate` | Cria senha e ativa | **público** | `{token, password}` | `{activated: true}` |
+| `POST /invite/activate` | Cria senha e ativa (também serve de redefinição) | **público** | `{token, password}` | `{activated: true}` |
+| `POST /invite/forgot-password` | **Esqueci minha senha** — envia link por e-mail | **público** (5/min) | `{email}` | `{requested: true}` (sempre igual) |
 | `POST /students` | Cadastra aluno + 1–2 responsáveis | ADMIN | `CreateStudentDto` | `{student, guardians[]}` |
 | `GET /students` | Lista alunos **paginada**, busca por nome ou RM | ADMIN | `?page&limit&q` | `{items[], total, page, limit, hasNext}` |
 | `GET /students/:id` | Detalhe + responsáveis | ADMIN | — | aluno + `qrToken` + `guardians[]` |
 | `POST /students/:id/card/block` | Bloqueia cartão | ADMIN | — | `{id, name, cardStatus}` |
+| `POST /students/:id/card/unblock` | **Desbloqueia mantendo o QR** | ADMIN | — | `{id, name, cardStatus}` |
 | `POST /students/:id/card/reissue` | Reemite (novo QR) | ADMIN | — | `{id, name, qrToken, cardStatus}` |
+| `PATCH /students/:id/photo` | Define/remove a foto (URL) | ADMIN | `{photoUrl?}` | `{id, name, photoUrl}` |
+| `GET /guardians` | **Lista responsáveis** (paginada) | ADMIN | `?status&page&limit&q` | `{items[], total, page, limit, hasNext}` |
 | `POST /operators` | Cria operador + convite | ADMIN | `{name, email}` | operador + `activationToken` |
 | `GET /operators` | Lista operadores **paginada**, busca por nome/e-mail | ADMIN | `?page&limit&q` | `{items[], total, page, limit, hasNext}` |
 | `POST /onboarding/import` | Importa CSV | ADMIN | `{csv}` | `{total, created, failed[]}` |
 | `GET /onboarding/cards.pdf` | PDF dos cartões | ADMIN | `?turma` | PDF (máx. 500) |
-| `POST /onboarding/guardians/:id/invite` | Envia/reenvia convite | ADMIN | — | `{email, sent, activationLink}` |
+| `POST /onboarding/guardians/:id/invite` | Envia/reenvia convite ao responsável | ADMIN | — | `{email, sent, activationLink}` |
+| `POST /onboarding/operators/:id/invite` | **Reenvia convite ao operador** | ADMIN | — | `{email, sent, activationLink}` |
 | `GET /students/:id/wallet` | Saldo e limite | ADMIN, RESPONSAVEL* | — | `{id, name, balanceCents, dailyLimitCents}` |
 | `PATCH /students/:id/daily-limit` | Define limite diário | ADMIN, RESPONSAVEL* | `{dailyLimitCents?}` | aluno + limite |
 | `POST /recharges` | Cria cobrança PIX | ADMIN, RESPONSAVEL* | `{studentId, amountCents}` | `{rechargeId, totalCents, brCode, brCodeBase64}` |
@@ -61,7 +66,7 @@
 | `GET /pdv/student-by-rm?rm=` | Aluno pelo RM (fallback) | OPERATOR, ADMIN (20/min) | `?rm` | idem |
 | `POST /pdv/purchase` | **Débito atômico** | OPERATOR, ADMIN | `{studentId, items[]}` | `{transactionId, totalCents, balanceAfterCents, items[]}` |
 | `GET /me/students` | Meus dependentes | RESPONSAVEL | — | `[{id, name, turma, balanceCents, dailyLimitCents, lowBalanceThresholdCents, cardStatus}]` |
-| `GET /me/students/:id/statement` | Extrato (últimas 30) | RESPONSAVEL* | — | `[{type, amountCents, balanceAfterCents, createdAt, items[]}]` |
+| `GET /me/students/:id/statement` | Extrato **paginado** | RESPONSAVEL* | `?page&limit` | `{items[], total, page, limit, hasNext}` |
 | `PATCH /me/students/:id/alert-threshold` | Limiar de alerta | RESPONSAVEL* | `{thresholdCents?}` | aluno + limiar |
 | `POST /me/students/:id/card/block` | Pede bloqueio do cartão | RESPONSAVEL* | — | `{id, name, cardStatus}` |
 | `GET /reports/daily` | Fechamento do dia | OPERATOR, ADMIN | `?date=YYYY-MM-DD` | `{date, totalCents, purchaseCount, averageTicketCents, byProduct[]}` |
@@ -112,17 +117,23 @@ explícito. Uma escola por instância — **não há seleção de tenant**.
 
 Registradas aqui porque **afetam telas**. Nenhuma foi assumida como existente no plano.
 
-| # | Lacuna | Impacto na UI | Endpoint que precisaria existir |
-|---|---|---|---|
-| **L1** | Não há "esqueci minha senha" self-service | O responsável que esquecer a senha depende de ligar para a escola | `POST /auth/forgot-password` (reusaria o mecanismo de convite) |
-| ~~L2~~ | ~~Não há como consultar uma recarga~~ | ✅ **RESOLVIDA** — `GET /recharges/:id` devolve o status (só o dono da recarga ou Admin) | — |
-| ~~L3~~ | ~~Nenhuma listagem tem paginação ou busca~~ | ✅ **RESOLVIDA** — `?page`, `?limit` e `?q` em `/students`, `/products`, `/operators` e `/reports/daily/transactions`, com envelope `{items, total, page, limit, hasNext}` | — |
-| **L4** | Extrato limitado a 30 lançamentos, sem paginação | O responsável não vê histórico além dos 30 últimos | `?page` ou `?before` em `/me/students/:id/statement` |
-| **L5** | Não há upload de foto do aluno | `photoUrl` existe no schema e o PDV usa, mas nada grava | `POST /students/:id/photo` |
-| **L6** | Reenvio de convite só funciona para RESPONSAVEL | Se o operador perder o link de ativação, não há reenvio | estender `/onboarding/guardians/:id/invite` ou criar `/operators/:id/invite` |
-| **L7** | Não há listagem de responsáveis | O Admin só vê responsáveis entrando aluno por aluno; não há tela de "convites pendentes" | `GET /guardians?status=PENDING` |
-| **L8** | Não há desbloqueio de cartão sem reemissão | Bloqueou por engano? Só reemitindo (troca o QR e obriga reimprimir) | `POST /students/:id/card/unblock` |
-| **L9** | Não há logout no servidor | Aceitável (JWT stateless — o cliente descarta o token), mas fica registrado | — (uso interno) |
+**Todas as 9 lacunas foram fechadas** depois desta auditoria. Ficam registradas com o que resolveu cada uma.
+
+| # | Lacuna original | Como foi resolvida |
+|---|---|---|
+| **L1** | Sem "esqueci minha senha" self-service | `POST /invite/forgot-password` — envia o link por e-mail, responde igual exista ou não a conta, 5/min |
+| **L2** | Sem consultar uma recarga | `GET /recharges/:id` — status, valores e `confirmedAt`; só o dono ou Admin |
+| **L3** | Listagens sem paginação nem busca | `?page`, `?limit` (máx. 100) e `?q` em `/students`, `/products`, `/operators`, `/reports/daily/transactions` |
+| **L4** | Extrato preso em 30 lançamentos | `?page` e `?limit` em `/me/students/:id/statement` |
+| **L5** | Sem foto do aluno | `PATCH /students/:id/photo` — recebe URL já hospedada (ver ressalva abaixo) |
+| **L6** | Reenvio de convite só para responsável | `POST /onboarding/operators/:id/invite` |
+| **L7** | Sem listagem de responsáveis | `GET /guardians?status=PENDING` — paginado, com os dependentes de cada um |
+| **L8** | Sem desbloquear cartão sem reemitir | `POST /students/:id/card/unblock` — mantém o mesmo QR |
+| **L9** | Sem invalidar sessões | `tokenVersion` no `User` + `tv` no JWT — trocar a senha derruba os tokens antigos |
+
+**Ressalva de L5:** o endpoint aceita uma **URL**, não o arquivo. Onde hospedar binário é decisão de
+infra ainda em aberto (provavelmente Supabase Storage, junto com o RLS). Até lá, a foto só funciona se
+a escola já hospedar as imagens em algum lugar.
 
 **Inconsistência menor observada:** `LoginDto` ainda exige senha ≥ 6 enquanto `ActivateDto` exige ≥ 8.
 Não enfraquece nada (toda senha nasce com ≥ 8 na ativação), mas as mensagens divergem.

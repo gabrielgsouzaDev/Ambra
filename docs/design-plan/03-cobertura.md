@@ -1,7 +1,11 @@
 # Auditoria de cobertura
 
-Cruzamento entre os 34 endpoints do backend e as 20 telas planejadas. Nenhum endpoint fica sem
+Cruzamento entre os 40 endpoints do backend e as 22 telas planejadas. Nenhum endpoint fica sem
 classificação: **coberto**, **órfão** ou **uso interno**.
+
+> **Revisada após o fechamento das lacunas.** A auditoria original encontrou 9 lacunas de backend;
+> todas foram resolvidas, somando 6 endpoints. Eles não entraram como órfãos: geraram duas telas
+> novas (**P3** esqueci-a-senha e **A8** responsáveis) e ampliaram **A3**, **A7** e **R4**.
 
 ---
 
@@ -14,20 +18,26 @@ classificação: **coberto**, **órfão** ou **uso interno**.
 | `GET /auth/me` | P1 (restauração de sessão, todas as superfícies) | coberto |
 | `GET /invite/:token` | P2 | coberto |
 | `POST /invite/activate` | P2 | coberto |
+| `POST /invite/forgot-password` | **P3** | coberto |
 | `POST /students` | A4 | coberto |
 | `GET /students` | A1, A2, A6 | coberto |
 | `GET /students/:id` | A3 | coberto |
 | `POST /students/:id/card/block` | A3 | coberto |
+| `POST /students/:id/card/unblock` | A3 | coberto |
 | `POST /students/:id/card/reissue` | A3 | coberto |
+| `PATCH /students/:id/photo` | A3 | coberto |
+| `GET /guardians` | **A8** | coberto |
 | `POST /operators` | A7 | coberto |
 | `GET /operators` | A7 | coberto |
 | `POST /onboarding/import` | A5 | coberto |
 | `GET /onboarding/cards.pdf` | A6 | coberto |
-| `POST /onboarding/guardians/:id/invite` | A3 | coberto |
+| `POST /onboarding/guardians/:id/invite` | A3, **A8** | coberto |
+| `POST /onboarding/operators/:id/invite` | **A7** | coberto |
 | `GET /students/:id/wallet` | A3 | coberto |
 | `PATCH /students/:id/daily-limit` | R5, A3 | coberto |
 | `POST /recharges` | R3 | coberto |
 | `GET /recharges/config` | R3 | coberto |
+| `GET /recharges/:id` | R4 | coberto |
 | `POST /recharges/webhook` | — | **uso interno** (chamado pelo gateway, nunca por tela) |
 | `GET /products` | R5, O2 (via `/pdv/student`), O4 | coberto |
 | `GET /products/:id` | — | **uso interno** (O4 edita a partir da linha já carregada da lista; endpoint fica disponível, sem tela dedicada) |
@@ -56,47 +66,58 @@ justificado como uso interno.
 
 | Tela | Endpoints consumidos | Lacunas que afetam a tela |
 |---|---|---|
-| P1 Entrar | `POST /auth/login`, `GET /auth/me` | **L1** — sem "esqueci a senha", a tela só orienta procurar a escola |
+| P1 Entrar | `POST /auth/login`, `GET /auth/me` | — |
 | P2 Ativar conta | `GET /invite/:token`, `POST /invite/activate` | — |
+| **P3 Esqueci minha senha** | `POST /invite/forgot-password` | — |
 | R1 Meus dependentes | `GET /me/students` | — |
-| R2 Dependente | `GET /me/students`, `GET /me/students/:id/statement` | **L4** — extrato preso nos 30 últimos, sem paginação |
+| R2 Dependente | `GET /me/students`, `GET /me/students/:id/statement` (paginado) | — |
 | R3 Recarregar — valor | `GET /recharges/config`, `POST /recharges` | — |
-| R4 Recarregar — pagamento | `GET /me/students` (polling) | **L2** — sem `GET /recharges/:id`, o status é inferido pelo saldo |
-| R5 Controles | `GET /me/students`, `GET /products`, `GET /students/:id/blocks`, `PATCH /students/:id/daily-limit`, `PATCH /me/students/:id/alert-threshold`, `PUT`/`DELETE /students/:id/blocks/:productId` | **L8** — sem desbloqueio de cartão sem reemissão |
+| R4 Recarregar — pagamento | `GET /recharges/:id` (polling), `GET /me/students` | — |
+| R5 Controles | `GET /me/students`, `GET /products`, `GET /students/:id/blocks`, `PATCH /students/:id/daily-limit`, `PATCH /me/students/:id/alert-threshold`, `PUT`/`DELETE /students/:id/blocks/:productId` | — |
 | R6 Confirmar bloqueio | `POST /me/students/:id/card/block` | — |
 | O1 Leitor | `GET /pdv/student?token=` | — |
-| O2 Pedido | `GET /pdv/student?token=`, `POST /pdv/purchase` | **L5** — foto do aluno nunca aparece (nada grava `photoUrl`) |
-| O3 Buscar por RM | `GET /pdv/student-by-rm?rm=` | **L5** — mesma coisa: a confirmação visual fica só no nome |
-| O4 Catálogo | `GET /products`, `POST`, `PATCH`, `DELETE /products/:id` | busca é local (sem `?q` no backend) |
-| O5 Fechamento | `GET /reports/daily`, `GET /reports/daily/transactions` | **L3** — lista de vendas do dia sem paginação |
-| A1 Início | `GET /reports/daily`, `GET /students` | **L3** — contar alunos baixando a lista inteira |
-| A2 Alunos | `GET /students` | **L3** — sem paginação nem busca no servidor |
-| A3 Aluno (detalhe) | `GET /students/:id`, `GET /students/:id/wallet`, `POST .../card/block`, `POST .../card/reissue`, `POST /onboarding/guardians/:id/invite`, `PATCH .../daily-limit` | **L6**, **L7**, **L8** |
+| O2 Pedido | `GET /pdv/student?token=`, `POST /pdv/purchase` | foto depende de a escola hospedar a imagem (A3) |
+| O3 Buscar por RM | `GET /pdv/student-by-rm?rm=` | idem |
+| O4 Catálogo | `GET /products` (`?q`), `POST`, `PATCH`, `DELETE /products/:id` | — |
+| O5 Fechamento | `GET /reports/daily`, `GET /reports/daily/transactions` (paginado) | — |
+| A1 Início | `GET /reports/daily`, `GET /students` (usa só o `total`) | — |
+| A2 Alunos | `GET /students` (`?page`, `?limit`, `?q`) | — |
+| A3 Aluno (detalhe) | `GET /students/:id`, `GET /students/:id/wallet`, `POST .../card/block`, `POST .../card/unblock`, `POST .../card/reissue`, `PATCH .../photo`, `POST /onboarding/guardians/:id/invite`, `PATCH .../daily-limit` | — |
 | A4 Cadastrar aluno | `POST /students` | — |
 | A5 Importar CSV | `POST /onboarding/import` | — |
 | A6 Cartões | `GET /onboarding/cards.pdf`, `GET /students` | sem filtro por aluno (só por turma) |
-| A7 Operadores | `GET /operators`, `POST /operators` | **L6** — sem reenvio de convite para operador |
+| A7 Operadores | `GET /operators`, `POST /operators`, `POST /onboarding/operators/:id/invite` | — |
+| **A8 Responsáveis** | `GET /guardians` (`?status`, `?q`), `POST /onboarding/guardians/:id/invite` | — |
 
 **Telas estáticas (sem endpoint): 0.**
 
 ---
 
-## 3. Lacunas de backend
+## 3. Lacunas de backend — todas fechadas
 
-Nenhuma tela do plano assume um endpoint que não existe. Estas lacunas foram **contornadas** no plano —
-mas três delas degradam experiência básica e deveriam ser resolvidas antes de rodar numa escola real.
+A auditoria original encontrou 9 lacunas. **Todas foram resolvidas** antes de o frontend começar, o
+que é o momento mais barato de fazer isso: nenhuma tela precisou nascer torta para contornar buraco.
 
-| # | Lacuna | Endpoint que precisaria existir | Gravidade |
+| # | Lacuna original | Como foi resolvida | Tela que passou a existir/mudar |
 |---|---|---|---|
-| ~~L2~~ | ~~Status de uma recarga~~ | ✅ **RESOLVIDA** — `GET /recharges/:id` existe. R4 agora **pergunta** o status em vez de inferir pelo saldo; `FAILED` fica distinguível de "ainda não paga" | — |
-| ~~L3~~ | ~~Paginação e busca~~ | ✅ **RESOLVIDA** — `?page`, `?limit` (máx. 100) e `?q` nas 4 listagens, com envelope `{items, total, page, limit, hasNext}`. A2 e O5 paginam no servidor; O4 e R5 pedem `limit=100` | — |
-| **L1** | Sem recuperação de senha self-service | `POST /auth/forgot-password` | 🟠 média — todo esquecimento vira ligação para a secretaria |
-| **L6** | Reenvio de convite só para responsável | estender `/onboarding/guardians/:id/invite` ou criar `/operators/:id/invite` | 🟠 média — operador que perde o link precisa ser recriado |
-| **L4** | Extrato preso em 30 lançamentos | `?page` ou `?before` em `/me/students/:id/statement` | 🟠 média — o pai não vê histórico do mês |
-| **L5** | Sem upload de foto do aluno | `POST /students/:id/photo` | 🟠 média — a confirmação visual do fallback por RM não funciona |
-| **L7** | Sem listagem de responsáveis | `GET /guardians?status=PENDING` | 🟡 baixa — não há tela de "convites pendentes"; só aluno por aluno |
-| **L8** | Sem desbloquear cartão sem reemitir | `POST /students/:id/card/unblock` | 🟡 baixa — bloqueio por engano obriga reimprimir |
-| **L9** | Sem logout no servidor | — | ⚪ aceito — JWT stateless; o cliente descarta o token |
+| L1 | Sem recuperação de senha | `POST /invite/forgot-password` (resposta idêntica exista ou não a conta, 5/min) | **P3** (nova) e link em P1 |
+| L2 | Sem status de recarga | `GET /recharges/:id` | R4 pergunta o status e trata `FAILED` |
+| L3 | Sem paginação nem busca | `?page`, `?limit` (máx. 100), `?q` nas 4 listagens | A2, A7, O4, O5 |
+| L4 | Extrato preso em 30 | `?page`/`?limit` no extrato | R2 |
+| L5 | Sem foto do aluno | `PATCH /students/:id/photo` (URL hospedada) | A3 ganha a seção Foto |
+| L6 | Reenvio só p/ responsável | `POST /onboarding/operators/:id/invite` | A7 ganha `Reenviar convite` |
+| L7 | Sem lista de responsáveis | `GET /guardians?status=PENDING` | **A8** (nova) |
+| L8 | Sem desbloquear sem reemitir | `POST /students/:id/card/unblock` | A3 ganha `Desbloquear cartão` |
+| L9 | Sessão sobrevivia à troca de senha | `tokenVersion` + `tv` no JWT | P2 avisa que as outras sessões caem |
+
+### Restrições que permanecem (não são lacunas — são decisões)
+
+- **Foto por URL, não upload.** Onde guardar binário é decisão de infra ainda aberta (provavelmente
+  Supabase Storage, junto com o RLS). Até lá, a foto só funciona se a escola já hospedar as imagens.
+- **Sem `RESEND_KEY`, o "esqueci a senha" não entrega.** O link vai só por e-mail (não pode voltar na
+  resposta, senão qualquer um redefiniria senha alheia). Nesse cenário a saída é o Admin reenviar o
+  convite por A3/A8. **Configurar o Resend é pré-requisito de piloto.**
+- **PDF de cartões sem filtro por aluno** — só por turma (melhoria, não lacuna).
 
 ---
 
@@ -104,13 +125,13 @@ mas três delas degradam experiência básica e deveriam ser resolvidas antes de
 
 | Métrica | Valor |
 |---|---|
-| Endpoints no backend | **34** |
-| Cobertos por alguma tela | **31** |
+| Endpoints no backend | **40** |
+| Cobertos por alguma tela | **37** |
 | Uso interno (justificados) | **3** — `GET /health`, `POST /recharges/webhook`, `GET /products/:id` |
 | **Órfãos** | **0** |
-| Telas planejadas | **20** (18 com rota + 2 modais) |
+| Telas planejadas | **22** (20 com rota + 2 modais) |
 | Telas sem endpoint | **0** |
-| **Lacunas de backend** | **9** — 2 altas, 4 médias, 2 baixas, 1 aceita |
+| **Lacunas de backend em aberto** | **0** |
 
 ---
 

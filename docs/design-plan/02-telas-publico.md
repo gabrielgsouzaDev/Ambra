@@ -29,7 +29,7 @@ rodapé. No mobile ocupa a tela inteira; o teclado não pode cobrir o botão.
 - **[input e-mail]** E-mail — placeholder `voce@escola.com.br` — obrigatório, formato de e-mail. Erro: `E-mail inválido.`
 - **[input senha]** Senha — placeholder `••••••••` — obrigatório, mínimo 6 caracteres. Erro: `A senha deve ter no mínimo 6 caracteres.`
 - **[botão primário]** `Entrar` — dispara `POST /auth/login`; desabilitado enquanto o formulário for inválido; vira spinner durante a chamada.
-- **[texto de apoio]** `Esqueceu a senha? Fale com a secretaria da escola.` — **texto estático, sem link** (ver lacuna **L1**: não existe recuperação self-service).
+- **[link]** `Esqueci minha senha` → P3.
 
 ### Estados
 - **Carregando:** botão com spinner e rótulo `Entrando…`; campos bloqueados.
@@ -88,3 +88,46 @@ O convite é de uso único e expira em 7 dias — a tela precisa deixar isso exp
 senão o usuário reclama sem entender. **Decisão em aberto:** logar automaticamente após ativar exigiria
 uma chamada extra de login com a senha recém-criada; manter o redirecionamento para `/entrar` é mais
 simples e é o que está planejado aqui.
+
+Esta mesma tela serve à **redefinição de senha** (P3): o token de reset usa o mesmo mecanismo do
+convite. Ao concluir, o backend **derruba as sessões antigas** — quem estava logado em outro aparelho
+precisa entrar de novo, que é o comportamento desejado quando a conta pode ter sido comprometida.
+
+---
+
+## [P3] Esqueci minha senha
+
+**Rota:** `/esqueci-senha`
+**Tipo:** tela
+**Acesso:** público.
+**Objetivo:** pedir o link de redefinição sem depender da secretaria da escola.
+
+### Chegada e saída
+- **Chega de:** P1 (link `Esqueci minha senha`).
+- **Sai para:** P1 (`Voltar para o login`) · P2, pelo link recebido no e-mail.
+
+### Endpoints consumidos
+| Endpoint | Quando dispara | Usado para |
+|---|---|---|
+| `POST /invite/forgot-password` | clique em `Enviar link` | disparar o e-mail de redefinição |
+
+### Layout
+Mesma moldura do login: um campo, um botão, uma explicação curta.
+
+### Elementos
+- **[input e-mail]** E-mail — placeholder `voce@escola.com.br` — obrigatório, formato de e-mail. Erro: `E-mail inválido.`
+- **[botão primário]** `Enviar link de redefinição`.
+- **[link]** `Voltar para o login` → P1.
+
+### Estados
+- **Carregando:** botão com spinner.
+- **Vazio:** não se aplica.
+- **Erro:** **429** → `Muitas tentativas. Aguarde um minuto.` (limite de 5/min). Rede → `Tentar de novo`.
+- **Sucesso:** substitui o formulário por `Se existir uma conta com esse e-mail, enviamos um link para redefinir a senha. Confira sua caixa de entrada — o link vale 7 dias.`
+
+### Observações
+A mensagem de sucesso é **deliberadamente ambígua** ("se existir uma conta") e o backend responde
+igual nos dois casos: senão, qualquer um descobriria quem tem cadastro na escola testando e-mails.
+A tela **nunca** mostra o link — ele só chega por e-mail, senão qualquer pessoa redefiniria a senha
+alheia. **Consequência operacional:** sem `RESEND_KEY` configurada, o e-mail não sai e o usuário fica
+sem saída por aqui — nesse cenário a escola precisa reenviar o convite pelo Admin (A3/A7).

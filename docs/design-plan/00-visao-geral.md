@@ -32,19 +32,20 @@ de entrar.
   um dependente.
 - **PDV (OPERATOR)** — o leitor **é** a tela inicial. Barra inferior com 3 itens: `Vender`,
   `Catálogo`, `Fechamento`. Nada além disso: o operador está com fila na frente.
-- **Admin (ADMIN)** — sidebar com **5 itens**: `Início`, `Alunos`, `Cartões`, `Operadores`,
-  `Relatório`. `Produtos` entra dentro de `Início` como atalho (o Admin gerencia catálogo, mas quem
-  usa no dia a dia é o operador).
+- **Admin (ADMIN)** — sidebar com **6 itens**: `Início`, `Alunos`, `Responsáveis`, `Cartões`,
+  `Operadores`, `Relatório`. `Produtos` entra dentro de `Início` como atalho (o Admin gerencia
+  catálogo, mas quem usa no dia a dia é o operador).
 
 Nenhuma superfície tem seleção de tenant — é uma escola por instância.
 
-## Mapa de telas (20)
+## Mapa de telas (22)
 
-### Público / Autenticação — 2
+### Público / Autenticação — 3
 | ID | Tela | Rota |
 |---|---|---|
 | P1 | Entrar | `/entrar` |
-| P2 | Ativar conta | `/ativar?token=` |
+| P2 | Ativar conta (e redefinir senha) | `/ativar?token=` |
+| P3 | Esqueci minha senha | `/esqueci-senha` |
 
 ### Portal Responsável — 6
 | ID | Tela | Rota |
@@ -65,7 +66,7 @@ Nenhuma superfície tem seleção de tenant — é uma escola por instância.
 | O4 | Catálogo da cantina | `/catalogo` |
 | O5 | Fechamento do dia | `/fechamento` |
 
-### Admin — 7
+### Admin — 8
 | ID | Tela | Rota |
 |---|---|---|
 | A1 | Início | `/` |
@@ -75,22 +76,23 @@ Nenhuma superfície tem seleção de tenant — é uma escola por instância.
 | A5 | Importar CSV | `/importar` |
 | A6 | Cartões | `/cartoes` |
 | A7 | Operadores | `/operadores` |
+| A8 | Responsáveis (convites pendentes) | `/responsaveis` |
 
 **O4 (Catálogo) e O5 (Fechamento) são compartilhados** entre PDV e Admin — mesmos endpoints, mesmos
 papéis autorizados. Decisão consciente: duplicar a tela só mudaria o menu ao redor.
 
 ## Contagem
 
-- **20 telas** — 18 com rota própria + 2 modais.
-- **34 endpoints** no backend · **31 cobertos** · **3 de uso interno** · **0 órfãos**.
-- **9 lacunas de backend** identificadas (ver `03-cobertura.md`), das quais **3 bloqueiam experiência
-  básica** e deveriam ser resolvidas antes do piloto.
+- **22 telas** — 20 com rota própria + 2 modais.
+- **40 endpoints** no backend · **37 cobertos** · **3 de uso interno** · **0 órfãos**.
+- **0 lacunas de backend em aberto** — as 9 encontradas na auditoria foram fechadas, e os 6 endpoints
+  novos geraram duas telas (P3 e A8) e ampliaram A3, A7 e R4.
 
 ## Ordem sugerida de construção
 
-1. **P1 + P2** (entrar e ativar) — sem isso nada é acessível.
+1. **P1 + P2 + P3** (entrar, ativar, recuperar senha) — sem isso nada é acessível.
 2. **O1 + O2 + O3** (o PDV) — é o coração e o que precisa ser testado numa cantina real.
 3. **R1 + R2** (dependentes e extrato) — o valor que o pai enxerga.
-4. **A2 + A3 + A4 + A5 + A6** (onboarding) — o que coloca a escola no ar.
+4. **A2 + A3 + A4 + A5 + A6 + A8** (onboarding) — o que coloca a escola no ar.
 5. **R3 + R4 + R5** (recarga e controles) — dependem do gateway real estar escolhido.
 6. **O4 + O5 + A1 + A7** (catálogo, fechamento, início, operadores).
