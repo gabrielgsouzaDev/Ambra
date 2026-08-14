@@ -14,4 +14,11 @@ export class InvitesController {
   send(@Param('id') id: string) {
     return this.invites.sendInvite(id);
   }
+
+  /** Mesmo reenvio, para conta de operador (L6). */
+  @Post('operators/:id/invite')
+  @HttpCode(HttpStatus.OK)
+  sendToOperator(@Param('id') id: string) {
+    return this.invites.sendInvite(id);
+  }
 }
