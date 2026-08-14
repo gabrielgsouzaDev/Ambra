@@ -1,4 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PaginationDto, paginated, toSkipTake } from '../common/dto/pagination.dto';
 import { CreateOperatorDto } from './dto/create-operator.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { createInviteToken } from './tokens';
@@ -47,11 +49,30 @@ export class OperatorsService {
     return { ...operator, activationToken: invite.token };
   }
 
-  list() {
-    return this.prisma.user.findMany({
-      where: { role: 'OPERATOR' },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, email: true, status: true, createdAt: true },
-    });
+  /** Lista paginada, com busca por nome ou e-mail. */
+  async list(query: PaginationDto) {
+    const where: Prisma.UserWhereInput = {
+      role: 'OPERATOR',
+      ...(query.q
+        ? {
+            OR: [
+              { name: { contains: query.q, mode: 'insensitive' as const } },
+              { email: { contains: query.q, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        ...toSkipTake(query),
+        select: { id: true, name: true, email: true, status: true, createdAt: true },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return paginated(items, total, query);
   }
 }

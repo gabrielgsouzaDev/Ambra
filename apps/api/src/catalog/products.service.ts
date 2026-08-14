@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PaginationDto, paginated, toSkipTake } from '../common/dto/pagination.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -27,13 +29,28 @@ export class ProductsService {
     });
   }
 
-  /** Catálogo. Por padrão só os ativos (soft-delete some daqui). */
-  list(includeInactive = false) {
-    return this.prisma.product.findMany({
-      where: includeInactive ? {} : { active: true },
-      orderBy: { name: 'asc' },
-      select: PRODUCT_SELECT,
-    });
+  /**
+   * Catálogo paginado, só os ativos (soft-delete some daqui), com busca por nome.
+   * As telas que precisam do catálogo inteiro (bloqueios no Portal, grade do PDV)
+   * devem pedir `limit=100`.
+   */
+  async list(query: PaginationDto) {
+    const where: Prisma.ProductWhereInput = {
+      active: true,
+      ...(query.q ? { name: { contains: query.q, mode: 'insensitive' } } : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.product.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        ...toSkipTake(query),
+        select: PRODUCT_SELECT,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    return paginated(items, total, query);
   }
 
   async getById(id: string) {

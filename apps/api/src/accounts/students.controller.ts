@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { StudentsService } from './students.service';
 
@@ -16,9 +17,10 @@ export class StudentsController {
     return this.students.createStudent(dto);
   }
 
+  /** `?page=1&limit=25&q=ana` — busca por nome ou RM. */
   @Get()
-  list() {
-    return this.students.list();
+  list(@Query() query: PaginationDto) {
+    return this.students.list(query);
   }
 
   @Get(':id')

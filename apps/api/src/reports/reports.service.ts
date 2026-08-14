@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { PaginationDto, paginated, toSkipTake } from '../common/dto/pagination.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface ProductLine {
@@ -73,20 +74,28 @@ export class ReportsService {
     return { date, totalCents, purchaseCount, averageTicketCents, byProduct };
   }
 
-  /** As compras do dia, para conferência (mais recentes primeiro). */
-  async dailyTransactions(dateStr?: string) {
+  /** As compras do dia, paginadas (um dia cheio numa escola grande passa de centenas). */
+  async dailyTransactions(query: PaginationDto, dateStr?: string) {
     const { start, end } = dayRange(dateStr);
-    return this.prisma.transaction.findMany({
-      where: { type: 'PURCHASE', createdAt: { gte: start, lt: end } },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        amountCents: true,
-        balanceAfterCents: true,
-        createdAt: true,
-        student: { select: { name: true, turma: true } },
-        items: { select: { productName: true, unitPriceCents: true, quantity: true } },
-      },
-    });
+    const where = { type: 'PURCHASE' as const, createdAt: { gte: start, lt: end } };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.transaction.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        ...toSkipTake(query),
+        select: {
+          id: true,
+          amountCents: true,
+          balanceAfterCents: true,
+          createdAt: true,
+          student: { select: { name: true, turma: true } },
+          items: { select: { productName: true, unitPriceCents: true, quantity: true } },
+        },
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+
+    return paginated(items, total, query);
   }
 }

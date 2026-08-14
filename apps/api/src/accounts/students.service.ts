@@ -5,6 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import {
+  Paginated,
+  PaginationDto,
+  paginated,
+  toSkipTake,
+} from '../common/dto/pagination.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { createInviteToken, generateOpaqueToken } from './tokens';
@@ -106,13 +112,30 @@ export class StudentsService {
     }
   }
 
-  async list(): Promise<
-    Array<{ id: string; name: string; turma: string | null; rm: string; createdAt: Date }>
+  /** Lista paginada, com busca por nome ou RM (a escola tem centenas de alunos). */
+  async list(query: PaginationDto): Promise<
+    Paginated<{ id: string; name: string; turma: string | null; rm: string; createdAt: Date }>
   > {
-    return this.prisma.student.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, turma: true, rm: true, createdAt: true },
-    });
+    const where: Prisma.StudentWhereInput = query.q
+      ? {
+          OR: [
+            { name: { contains: query.q, mode: 'insensitive' } },
+            { rm: { contains: query.q, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.student.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        ...toSkipTake(query),
+        select: { id: true, name: true, turma: true, rm: true, createdAt: true },
+      }),
+      this.prisma.student.count({ where }),
+    ]);
+
+    return paginated(items, total, query);
   }
 
   async getById(id: string) {
