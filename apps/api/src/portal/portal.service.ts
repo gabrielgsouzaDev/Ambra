@@ -1,7 +1,8 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { PaginationDto, paginated, toSkipTake } from '../common/dto/pagination.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
-const STATEMENT_LIMIT = 30;
+
 
 @Injectable()
 export class PortalService {
@@ -24,22 +25,32 @@ export class PortalService {
     });
   }
 
-  /** Extrato do dependente: últimas transações (recarga e compra) com os itens. */
-  async statement(studentId: string, guardianId: string) {
+  /**
+   * Extrato do dependente, paginado — o pai precisa conseguir olhar o mês inteiro,
+   * não só os últimos lançamentos.
+   */
+  async statement(studentId: string, guardianId: string, query: PaginationDto) {
     await this.assertGuardian(studentId, guardianId);
-    return this.prisma.transaction.findMany({
-      where: { studentId },
-      orderBy: { createdAt: 'desc' },
-      take: STATEMENT_LIMIT,
-      select: {
-        id: true,
-        type: true,
-        amountCents: true,
-        balanceAfterCents: true,
-        createdAt: true,
-        items: { select: { productName: true, unitPriceCents: true, quantity: true } },
-      },
-    });
+    const where = { studentId };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.transaction.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        ...toSkipTake(query),
+        select: {
+          id: true,
+          type: true,
+          amountCents: true,
+          balanceAfterCents: true,
+          createdAt: true,
+          items: { select: { productName: true, unitPriceCents: true, quantity: true } },
+        },
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+
+    return paginated(items, total, query);
   }
 
   /** Define o limiar do alerta de saldo baixo (a ENTREGA do alerta é v1.1). */

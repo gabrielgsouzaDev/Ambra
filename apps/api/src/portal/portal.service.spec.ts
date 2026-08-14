@@ -7,8 +7,9 @@ describe('PortalService', () => {
   let service: PortalService;
   let prisma: {
     student: { findMany: jest.Mock; update: jest.Mock };
-    transaction: { findMany: jest.Mock };
+    transaction: { findMany: jest.Mock; count: jest.Mock };
     guardianStudent: { findFirst: jest.Mock };
+    $transaction: jest.Mock;
   };
 
   const guardianId = 'g-1';
@@ -16,8 +17,13 @@ describe('PortalService', () => {
   beforeEach(async () => {
     prisma = {
       student: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn().mockResolvedValue({}) },
-      transaction: { findMany: jest.fn().mockResolvedValue([]) },
+      transaction: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
       guardianStudent: { findFirst: jest.fn() },
+      // statement() usa $transaction([findMany, count]) para paginar
+      $transaction: jest.fn().mockResolvedValue([[], 0]),
     };
     const moduleRef = await Test.createTestingModule({
       providers: [PortalService, { provide: PrismaService, useValue: prisma }],
@@ -34,16 +40,26 @@ describe('PortalService', () => {
 
   it('extrato de aluno que NÃO é dependente → Forbidden (sem ler transações)', async () => {
     prisma.guardianStudent.findFirst.mockResolvedValue(null);
-    await expect(service.statement('s-x', guardianId)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.statement('s-x', guardianId, { page: 1, limit: 25 }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.transaction.findMany).not.toHaveBeenCalled();
   });
 
-  it('extrato de dependente → devolve as transações com itens', async () => {
+  it('extrato de dependente → devolve as transações paginadas', async () => {
     prisma.guardianStudent.findFirst.mockResolvedValue({ id: 'gs-1' });
-    await service.statement('s-1', guardianId);
+
+    const result = await service.statement('s-1', guardianId, { page: 2, limit: 10 });
+
     expect(prisma.transaction.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { studentId: 's-1' }, orderBy: { createdAt: 'desc' } }),
+      expect.objectContaining({
+        where: { studentId: 's-1' },
+        orderBy: { createdAt: 'desc' },
+        skip: 10,
+        take: 10,
+      }),
     );
+    expect(result).toMatchObject({ page: 2, limit: 10 });
   });
 
   it('pedir bloqueio do cartão marca cardStatus=BLOCKED (após checar vínculo)', async () => {
