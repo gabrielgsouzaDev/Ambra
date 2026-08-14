@@ -39,4 +39,13 @@ export class WalletController {
   config() {
     return { feeCents: RECHARGE_FEE_CENTS, suggestedAmountsCents: SUGGESTED_AMOUNTS_CENTS };
   }
+
+  /**
+   * Status da recarga — a tela de pagamento pergunta aqui em vez de inferir pelo saldo.
+   * Declarado DEPOIS de `recharges/config`, senão "config" casaria como `:id`.
+   */
+  @Get('recharges/:id')
+  getRecharge(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.wallet.getRecharge(id, user);
+  }
 }

@@ -102,6 +102,36 @@ export class WalletService {
     };
   }
 
+  /**
+   * Status de uma recarga. É o que permite a tela de pagamento saber se o PIX foi
+   * pago, em vez de adivinhar observando o saldo. Só o responsável que criou a
+   * recarga (ou um Admin) pode consultar.
+   */
+  async getRecharge(rechargeId: string, actor: Actor) {
+    const recharge = await this.prisma.recharge.findUnique({
+      where: { id: rechargeId },
+      select: {
+        id: true,
+        studentId: true,
+        guardianId: true,
+        amountCents: true,
+        feeCents: true,
+        status: true,
+        createdAt: true,
+        confirmedAt: true,
+      },
+    });
+    if (!recharge) {
+      throw new NotFoundException('Recarga não encontrada.');
+    }
+    if (actor.role !== 'ADMIN' && recharge.guardianId !== actor.id) {
+      throw new ForbiddenException('Esta recarga não é sua.');
+    }
+
+    const { guardianId: _guardianId, ...rest } = recharge;
+    return { ...rest, totalCents: recharge.amountCents + recharge.feeCents };
+  }
+
   /** Entrada do webhook do gateway. Valida pela porta e aplica o evento. */
   async handleWebhook(rawBody: unknown, signature?: string): Promise<void> {
     const event = this.gateway.verifyWebhook(rawBody, signature);
