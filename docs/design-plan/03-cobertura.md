@@ -162,3 +162,19 @@ Pontos que a revisão levantou e como o plano resolve:
 1. **Entrar direto no dependente** quando o responsável tiver só um filho (pula R1)?
 2. **Login automático após ativar a conta** (P2), em vez de mandar para `/entrar`?
 3. **Gerar PDF de um aluno só** (A6) — hoje o filtro é apenas por turma.
+
+### Entrega do convite ao responsável — decidido, a implementar depois
+
+O e-mail é o canal padrão, mas depende de `RESEND_KEY` e de o cadastro escolar ter e-mail atualizado.
+Três decisões já tomadas, fora do escopo deste plano:
+
+- **Campo `phone` opcional no responsável** + botão **`Enviar por WhatsApp`** no Admin, gerando um link
+  `wa.me` com a mensagem pronta. A secretária clica e envia do WhatsApp da escola: **sem custo, sem API
+  e sem CNPJ** — a API oficial do WhatsApp exigiria empresa verificada na Meta, o que hoje é bloqueio.
+- **Cartão de ativação do responsável**, entregue em reunião escolar. **Não** vai junto do cartão do
+  aluno: a criança carregaria a credencial de acesso à conta do pai. O ideal é o pai ativar na hora,
+  na reunião — a janela de risco vira zero (o token é de uso único e expira em 7 dias).
+- **Quem faltar à reunião** é contatado pela escola, e os próprios pais tendem a repassar entre si.
+
+Nada disso muda as telas já especificadas: A3, A7 e A8 já mostram o link de ativação com `Copiar link`,
+que é exatamente o que a entrega manual precisa. O botão de WhatsApp seria um acréscimo a essas telas.

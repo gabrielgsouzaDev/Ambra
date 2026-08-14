@@ -77,7 +77,7 @@ tela é o extrato, em lista cronológica decrescente, agrupada por dia.
   - recarga → ícone de entrada, `+ R$ 50,00`, horário, rótulo `Recarga`;
   - em ambos, saldo depois do lançamento em texto secundário (`Saldo: R$ 24,50`).
 - **[separador de dia]** `Hoje`, `Ontem`, ou `12/08/2026`.
-- **[rodapé da lista]** `Mostrando os 30 lançamentos mais recentes.` — texto fixo (ver lacuna **L4**: não há paginação).
+- **[botão no rodapé]** `Carregar mais` — pede a próxima página (`?page`); some quando `hasNext` for `false`. Rodapé final: `Fim do extrato.`
 
 ### Estados
 - **Carregando:** cabeçalho em esqueleto + três linhas de lançamento em esqueleto.
@@ -225,11 +225,12 @@ lá no fim: `Limite diário`, `Itens bloqueados`, `Cartão`.
 **Seção Cartão**
 - **[texto de estado]** `Cartão ativo` ou `Cartão bloqueado desde …`.
 - **[botão destrutivo]** `Bloquear cartão` — abre R6. Some quando já estiver bloqueado.
-- **[texto de apoio quando bloqueado]** `Para voltar a usar, a escola precisa reemitir o cartão.` (ver lacuna **L8** — não há desbloqueio simples).
+- **[texto de apoio quando bloqueado]** `Achou o cartão? A escola pode desbloquear sem trocar o cartão. Se ele foi perdido de vez, peça a reemissão.` — o desbloqueio é ação do Admin (A3), não do responsável: quem bloqueia por segurança não deve poder desbloquear sozinho.
 
 ### Filtros e busca
-Na lista de produtos, **busca local** por nome (`GET /products` devolve o catálogo inteiro, sem query
-de busca no backend). Adequado para uma cantina; se o catálogo crescer muito, vira lacuna.
+Na lista de produtos, busca por nome via `?q` na API. A tela pede `limit=100` para trazer o catálogo
+inteiro de uma vez — é o certo aqui: o pai precisa ver **todos** os itens para decidir o que bloquear,
+e uma cantina não passa de algumas dezenas de produtos.
 
 ### Estados
 - **Carregando:** cada seção com esqueleto próprio; a tela não espera tudo para renderizar.

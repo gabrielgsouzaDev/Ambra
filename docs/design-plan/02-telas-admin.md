@@ -38,9 +38,8 @@ Nada de gráficos: a escola quer números e caminhos curtos.
 - **Sucesso:** números do dia populados.
 
 ### Observações
-A contagem de alunos vem do tamanho de `GET /students`, que hoje devolve a lista inteira — funciona
-para uma escola, mas é desperdício de banda e depende da lacuna **L3** (paginação e contagem) para
-ficar correto em escala.
+A contagem de alunos usa o campo `total` de `GET /students?limit=1` — o envelope de paginação já traz
+o total, então não é preciso baixar a lista inteira só para contar.
 
 ---
 
@@ -64,15 +63,16 @@ ficar correto em escala.
 Cabeçalho com título, campo de busca e os dois botões de criação. Corpo é uma tabela densa.
 
 ### Elementos
-- **[input busca]** placeholder `Buscar por nome ou RM` — **filtro local** (ver Filtros).
+- **[input busca]** placeholder `Buscar por nome ou RM` — vai para `?q` na API (com debounce).
 - **[botão primário]** `Cadastrar aluno` → A4.
 - **[botão secundário]** `Importar CSV` → A5.
-- **[tabela]** colunas: Nome, Turma, RM, Cadastrado em. Ordenável por Nome e Turma. Clique na linha → A3.
+- **[tabela]** colunas: Nome, Turma, RM, Cadastrado em. Clique na linha → A3.
+- **[paginação]** `Anterior` / `Próxima` com `Mostrando 1–25 de 412` (vem de `total` e `hasNext`).
 
 ### Filtros e busca
-Busca **local**, por nome e RM, porque `GET /students` não aceita `?q` nem paginação (lacuna **L3**).
-Com 400+ alunos a tabela precisa de virtualização no front para não travar — e a paginação real
-deveria vir do backend antes do piloto.
+Busca **no servidor** por nome ou RM (`?q`), com paginação (`?page`, `?limit`). A tabela mostra
+`Mostrando 1–25 de 412` e navega por `Anterior` / `Próxima` — nada é baixado além da página atual,
+então uma escola de 400+ alunos abre instantâneo.
 
 ### Estados
 - **Carregando:** cinco linhas em esqueleto.

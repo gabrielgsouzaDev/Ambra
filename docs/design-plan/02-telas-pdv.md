@@ -126,8 +126,9 @@ o que será cobrado (só exibe).
 ### Observações
 É **consulta pontual, nunca busca navegável**: não existe listagem por nome nem autocomplete, de
 propósito — evita que o balcão vire um diretório de alunos. A confirmação visual (foto) existe para o
-operador ter certeza antes de debitar; hoje `photoUrl` quase sempre virá vazio, porque **não há upload
-de foto** (lacuna **L5**). Toda consulta por RM é registrada em log de auditoria no backend.
+operador ter certeza antes de debitar; ela só aparece se a escola tiver preenchido a foto em A3, que
+hoje recebe uma **URL já hospedada** (upload de arquivo depende de uma decisão de armazenamento ainda
+em aberto). Toda consulta por RM é registrada em log de auditoria no backend.
 
 ---
 
@@ -160,7 +161,7 @@ frequente do dia (`acabou a coxinha`). Botão de novo produto fixo no topo.
 - **[modal de remoção]** `Remover "{produto}" do catálogo? Ele deixa de aparecer no PDV. As vendas já feitas continuam no histórico.` + `Remover` / `Cancelar`.
 
 ### Filtros e busca
-Busca local por nome. O backend não aceita query de busca em `/products`.
+Busca por nome via `?q` na API. A tela pede `limit=100` — o operador precisa do catálogo todo à vista.
 
 ### Estados
 - **Carregando:** três linhas em esqueleto.
@@ -213,5 +214,5 @@ Filtro por data (`?date=YYYY-MM-DD`), que é o único aceito pela API.
 
 ### Observações
 O "dia" é o dia local do servidor — o deploy precisa rodar com `TZ=America/Sao_Paulo`, senão o
-fechamento corta no horário errado. A lista de vendas do dia **não tem paginação** no backend: numa
-escola grande, um dia cheio pode devolver centenas de linhas de uma vez (relacionado à lacuna **L3**).
+fechamento corta no horário errado. A lista de vendas do dia é **paginada** (`?page`, `?limit`), então
+um dia cheio numa escola grande não derruba a tela: a seção recolhível carrega 25 por vez.
