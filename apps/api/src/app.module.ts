@@ -7,6 +7,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { ConfigModule } from './config/config.module';
+import { EmailModule } from './email/email.module';
 import { HealthController } from './health/health.controller';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { PdvModule } from './pdv/pdv.module';
@@ -21,6 +22,7 @@ import { WalletModule } from './wallet/wallet.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     ConfigModule,
     PrismaModule,
+    EmailModule,
     AuthModule,
     AccountsModule,
     OnboardingModule,

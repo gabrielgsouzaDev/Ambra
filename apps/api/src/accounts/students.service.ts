@@ -175,6 +175,39 @@ export class StudentsService {
   }
 
   /**
+   * Desbloqueia o cartão MANTENDO o mesmo QR. Serve para o bloqueio feito por
+   * engano (ou o cartão que reapareceu) — sem isso, a escola era obrigada a
+   * reemitir e reimprimir só para desfazer.
+   */
+  async unblockCard(
+    id: string,
+  ): Promise<{ id: string; name: string; cardStatus: 'ACTIVE' | 'BLOCKED' }> {
+    await this.ensureExists(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { cardStatus: 'ACTIVE' },
+      select: { id: true, name: true, cardStatus: true },
+    });
+  }
+
+  /**
+   * Define a foto do aluno (opcional, LGPD) a partir de uma URL já hospedada.
+   * Não recebemos o arquivo: escolher onde armazenar binário é decisão de infra
+   * que ainda não foi tomada (ver observação em docs/design-plan).
+   */
+  async setPhoto(
+    id: string,
+    photoUrl: string | null,
+  ): Promise<{ id: string; name: string; photoUrl: string | null }> {
+    await this.ensureExists(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { photoUrl },
+      select: { id: true, name: true, photoUrl: true },
+    });
+  }
+
+  /**
    * Reemissão: gera um QR novo (o antigo deixa de valer) e reativa o cartão.
    * Devolve o novo qrToken para a escola reimprimir o cartão.
    */
