@@ -8,9 +8,11 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
@@ -27,10 +29,11 @@ export class ProductsController {
     return this.products.create(dto);
   }
 
+  /** `?page=1&limit=100&q=coxinha` — telas que precisam do catálogo inteiro pedem limit=100. */
   @Get()
   @Roles(Role.ADMIN, Role.OPERATOR, Role.RESPONSAVEL)
-  list() {
-    return this.products.list();
+  list(@Query() query: PaginationDto) {
+    return this.products.list(query);
   }
 
   @Get(':id')

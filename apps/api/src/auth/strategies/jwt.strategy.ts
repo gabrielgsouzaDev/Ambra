@@ -28,11 +28,23 @@ export class JwtStrategy extends PassportStrategy(Strategy, JWT_STRATEGY) {
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, role: true, schoolId: true, status: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        schoolId: true,
+        status: true,
+        tokenVersion: true,
+      },
     });
 
     if (!user || user.status !== 'ACTIVE') {
       throw new UnauthorizedException('Sessão inválida.');
+    }
+
+    // Senha trocada depois da emissão deste token → sessão morre.
+    if (user.tokenVersion !== payload.tv) {
+      throw new UnauthorizedException('Sua senha foi alterada. Entre novamente.');
     }
 
     return {

@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { createInviteToken } from '../accounts/tokens';
 import { AppConfigService } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from './email.service';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class InvitesService {
@@ -24,11 +24,14 @@ export class InvitesService {
       where: { id: guardianId },
       select: { id: true, name: true, email: true, role: true, status: true },
     });
-    if (!guardian || guardian.role !== 'RESPONSAVEL') {
-      throw new NotFoundException('Responsável não encontrado.');
+    // Vale para responsável E operador — quem perde o link de ativação precisa de
+    // reenvio, e recriar a conta do operador só por isso seria absurdo. Admin não
+    // entra aqui: a conta dele nasce do seed, não de convite.
+    if (!guardian || (guardian.role !== 'RESPONSAVEL' && guardian.role !== 'OPERATOR')) {
+      throw new NotFoundException('Conta não encontrada.');
     }
     if (guardian.status === 'ACTIVE') {
-      throw new BadRequestException('Este responsável já ativou a conta.');
+      throw new BadRequestException('Esta conta já foi ativada.');
     }
 
     const invite = createInviteToken();

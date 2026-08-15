@@ -74,6 +74,10 @@ model User {
   inviteTokenHash String?
   inviteExpiresAt DateTime?
 
+  // Invalida sessões antigas: sobe a cada troca de senha, e o JWT carrega a versão
+  // com que foi emitido. Token emitido antes da troca deixa de valer.
+  tokenVersion Int @default(0)
+
   // Vínculo com alunos (só faz sentido para RESPONSAVEL). N:N via GuardianStudent.
   students  GuardianStudent[]
   recharges Recharge[] // recargas que este responsável iniciou

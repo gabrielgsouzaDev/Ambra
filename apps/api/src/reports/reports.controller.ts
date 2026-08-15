@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { DailyTransactionsDto } from './dto/daily-transactions.dto';
 import { ReportsService } from './reports.service';
 
 /** Fechamento da cantina. Operador e Admin. */
@@ -15,9 +16,9 @@ export class ReportsController {
     return this.reports.daily(date);
   }
 
-  /** As compras do dia, para conferência. */
+  /** As compras do dia, paginadas. `?date=YYYY-MM-DD&page=1&limit=25`. */
   @Get('daily/transactions')
-  dailyTransactions(@Query('date') date?: string) {
-    return this.reports.dailyTransactions(date);
+  dailyTransactions(@Query() query: DailyTransactionsDto) {
+    return this.reports.dailyTransactions(query, query.date);
   }
 }

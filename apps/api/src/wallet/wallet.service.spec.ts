@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -104,6 +105,50 @@ describe('WalletService', () => {
         ),
       ).rejects.toBeInstanceOf(ForbiddenException);
       expect(prisma.recharge.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getRecharge — status da recarga', () => {
+    const recharge = {
+      id: 'rec-1',
+      studentId: 'stu-1',
+      guardianId: 'g-1',
+      amountCents: 10000,
+      feeCents: 199,
+      status: 'PENDING',
+      createdAt: new Date(),
+      confirmedAt: null,
+    };
+
+    it('devolve o status com o total, sem expor o guardianId', async () => {
+      prisma.recharge.findUnique.mockResolvedValue(recharge);
+
+      const result = await service.getRecharge('rec-1', { id: 'g-1', role: 'RESPONSAVEL' });
+
+      expect(result).toMatchObject({ id: 'rec-1', status: 'PENDING', totalCents: 10199 });
+      expect(result).not.toHaveProperty('guardianId');
+    });
+
+    it('recusa a recarga de outro responsável', async () => {
+      prisma.recharge.findUnique.mockResolvedValue(recharge);
+
+      await expect(
+        service.getRecharge('rec-1', { id: 'outro-pai', role: 'RESPONSAVEL' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('admin consulta qualquer recarga', async () => {
+      prisma.recharge.findUnique.mockResolvedValue(recharge);
+      await expect(
+        service.getRecharge('rec-1', { id: 'admin-1', role: 'ADMIN' }),
+      ).resolves.toMatchObject({ id: 'rec-1' });
+    });
+
+    it('recarga inexistente → 404', async () => {
+      prisma.recharge.findUnique.mockResolvedValue(null);
+      await expect(
+        service.getRecharge('zzz', { id: 'g-1', role: 'RESPONSAVEL' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

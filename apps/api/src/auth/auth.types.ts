@@ -9,6 +9,8 @@ export interface JwtPayload {
   email: string;
   role: Role;
   schoolId: string;
+  /** Versão da senha no momento da emissão — trocar a senha invalida tokens antigos. */
+  tv: number;
 }
 
 /**
@@ -20,6 +22,11 @@ export interface AuthenticatedUser {
   email: string;
   role: Role;
   schoolId: string;
+}
+
+/** Uso interno do AuthService: leva a versão da senha, que não vai para os controllers. */
+export interface AuthenticatedUserWithVersion extends AuthenticatedUser {
+  tokenVersion: number;
 }
 
 /** Resposta do login: o token e um resumo seguro do usuário (sem hash de senha). */

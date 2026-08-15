@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { CreateOperatorDto } from './dto/create-operator.dto';
 import { OperatorsService } from './operators.service';
 
@@ -16,8 +17,9 @@ export class OperatorsController {
     return this.operators.create(dto);
   }
 
+  /** `?page=1&limit=25&q=cantina` — busca por nome ou e-mail. */
   @Get()
-  list() {
-    return this.operators.list();
+  list(@Query() query: PaginationDto) {
+    return this.operators.list(query);
   }
 }

@@ -5,6 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import {
+  Paginated,
+  PaginationDto,
+  paginated,
+  toSkipTake,
+} from '../common/dto/pagination.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { createInviteToken, generateOpaqueToken } from './tokens';
@@ -106,13 +112,30 @@ export class StudentsService {
     }
   }
 
-  async list(): Promise<
-    Array<{ id: string; name: string; turma: string | null; rm: string; createdAt: Date }>
+  /** Lista paginada, com busca por nome ou RM (a escola tem centenas de alunos). */
+  async list(query: PaginationDto): Promise<
+    Paginated<{ id: string; name: string; turma: string | null; rm: string; createdAt: Date }>
   > {
-    return this.prisma.student.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, turma: true, rm: true, createdAt: true },
-    });
+    const where: Prisma.StudentWhereInput = query.q
+      ? {
+          OR: [
+            { name: { contains: query.q, mode: 'insensitive' } },
+            { rm: { contains: query.q, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.student.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        ...toSkipTake(query),
+        select: { id: true, name: true, turma: true, rm: true, createdAt: true },
+      }),
+      this.prisma.student.count({ where }),
+    ]);
+
+    return paginated(items, total, query);
   }
 
   async getById(id: string) {
@@ -148,6 +171,39 @@ export class StudentsService {
       where: { id },
       data: { cardStatus: 'BLOCKED' },
       select: { id: true, name: true, cardStatus: true },
+    });
+  }
+
+  /**
+   * Desbloqueia o cartão MANTENDO o mesmo QR. Serve para o bloqueio feito por
+   * engano (ou o cartão que reapareceu) — sem isso, a escola era obrigada a
+   * reemitir e reimprimir só para desfazer.
+   */
+  async unblockCard(
+    id: string,
+  ): Promise<{ id: string; name: string; cardStatus: 'ACTIVE' | 'BLOCKED' }> {
+    await this.ensureExists(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { cardStatus: 'ACTIVE' },
+      select: { id: true, name: true, cardStatus: true },
+    });
+  }
+
+  /**
+   * Define a foto do aluno (opcional, LGPD) a partir de uma URL já hospedada.
+   * Não recebemos o arquivo: escolher onde armazenar binário é decisão de infra
+   * que ainda não foi tomada (ver observação em docs/design-plan).
+   */
+  async setPhoto(
+    id: string,
+    photoUrl: string | null,
+  ): Promise<{ id: string; name: string; photoUrl: string | null }> {
+    await this.ensureExists(id);
+    return this.prisma.student.update({
+      where: { id },
+      data: { photoUrl },
+      select: { id: true, name: true, photoUrl: true },
     });
   }
 
